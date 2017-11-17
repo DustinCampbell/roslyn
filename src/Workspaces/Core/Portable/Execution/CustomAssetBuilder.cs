@@ -9,7 +9,8 @@ using Microsoft.CodeAnalysis.Host;
 namespace Microsoft.CodeAnalysis.Execution
 {
     /// <summary>
-    /// builder to create custom asset which is not part of solution but want to participate in <see cref="IRemotableDataService"/>
+    /// Builder to create custom asset that is not part of solution
+    /// but want to participate in <see cref="IRemotableDataService"/>
     /// </summary>
     internal class CustomAssetBuilder
     {

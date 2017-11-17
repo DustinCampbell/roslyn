@@ -42,7 +42,7 @@ namespace Microsoft.CodeAnalysis.Execution
         public abstract Task WriteObjectToAsync(ObjectWriter writer, CancellationToken cancellationToken);
 
         /// <summary>
-        /// null asset indicating things that doesn't actually exist
+        /// Null asset indicating things that doesn't actually exist
         /// </summary>
         private sealed class NullRemotableData : RemotableData
         {

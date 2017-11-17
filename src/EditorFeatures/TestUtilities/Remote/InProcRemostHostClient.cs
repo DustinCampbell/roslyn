@@ -39,7 +39,7 @@ namespace Roslyn.Test.Utilities.Remote
             // TODO: change this to non fatal watson and make VS to use inproc implementation
             Contract.ThrowIfFalse(host == current.ToString());
 
-            instance.Started();
+            instance.Start();
 
             // return instance
             return instance;
@@ -97,7 +97,7 @@ namespace Roslyn.Test.Utilities.Remote
 
         private void OnRpcDisconnected(object sender, JsonRpcDisconnectedEventArgs e)
         {
-            Stopped();
+            Stop();
         }
 
         public class ServiceProvider : IServiceProvider

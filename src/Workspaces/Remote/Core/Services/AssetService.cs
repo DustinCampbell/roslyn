@@ -114,7 +114,7 @@ namespace Microsoft.CodeAnalysis.Remote
             //
             // even if it got expired after this for whatever reason, functionality wise everything will still work, 
             // just perf will be impacted since we will fetch it from data source (VS)
-            return _assetStorage.TryGetAsset(checksum, out object unused);
+            return _assetStorage.TryGetAsset(checksum, out object _);
         }
 
         public async Task SynchronizeAssetsAsync(ISet<Checksum> checksums, CancellationToken cancellationToken)

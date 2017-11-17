@@ -56,9 +56,9 @@ namespace Microsoft.CodeAnalysis.Serialization
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (value is IChecksummedObject)
+                if (value is IChecksummedObject checksummedObject)
                 {
-                    return ((IChecksummedObject)value).Checksum;
+                    return checksummedObject.Checksum;
                 }
 
                 switch (kind)
@@ -96,9 +96,9 @@ namespace Microsoft.CodeAnalysis.Serialization
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (value is ChecksumWithChildren)
+                if (value is ChecksumWithChildren checksumWithChildren)
                 {
-                    SerializeChecksumWithChildren((ChecksumWithChildren)value, writer, cancellationToken);
+                    SerializeChecksumWithChildren(checksumWithChildren, writer, cancellationToken);
                     return;
                 }
 

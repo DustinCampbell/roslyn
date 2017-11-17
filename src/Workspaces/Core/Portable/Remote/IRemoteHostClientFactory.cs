@@ -7,8 +7,8 @@ using Microsoft.CodeAnalysis.Host;
 namespace Microsoft.CodeAnalysis.Remote
 {
     /// <summary>
-    /// Create new <see cref="RemoteHostClient"/>.
-    /// 
+    /// Factory to create instances of <see cref="RemoteHostClient"/>.
+    ///
     /// <see cref="IRemoteHostClientFactory"/> will use this to create new <see cref="RemoteHostClient"/> 
     /// </summary>
     internal interface IRemoteHostClientFactory : IWorkspaceService

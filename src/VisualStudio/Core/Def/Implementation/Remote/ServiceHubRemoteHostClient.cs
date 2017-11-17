@@ -65,7 +65,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Remote
                 var instance = await RetryRemoteCallAsync<IOException, ServiceHubRemoteHostClient>(
                     () => CreateWorkerAsync(workspace, primary, timeout, cancellationToken), timeout, cancellationToken).ConfigureAwait(false);
 
-                instance.Started();
+                instance.Start();
 
                 // Create a workspace host to hear about workspace changes.  We'll 
                 // remote those changes over to the remote side when they happen.
@@ -290,7 +290,7 @@ namespace Microsoft.VisualStudio.LanguageServices.Remote
 
         private void OnRpcDisconnected(object sender, JsonRpcDisconnectedEventArgs e)
         {
-            Stopped();
+            Stop();
         }
 
         /// <summary>

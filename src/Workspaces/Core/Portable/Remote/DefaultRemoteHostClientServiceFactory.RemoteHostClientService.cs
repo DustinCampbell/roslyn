@@ -1,6 +1,5 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Roslyn.Utilities;
@@ -9,7 +8,7 @@ namespace Microsoft.CodeAnalysis.Remote
 {
     internal partial class DefaultRemoteHostClientServiceFactory
     {
-        public class RemoteHostClientService : IRemoteHostClientService
+        private class RemoteHostClientService : IRemoteHostClientService
         {
             private readonly Workspace _workspace;
             private readonly IRemoteHostClientFactory _remoteHostClientFactory;
