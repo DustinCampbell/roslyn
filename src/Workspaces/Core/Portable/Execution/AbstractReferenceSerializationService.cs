@@ -442,12 +442,12 @@ namespace Microsoft.CodeAnalysis.Execution
                 writer.WriteInt32((int)MetadataImageKind.Assembly);
                 writer.WriteInt32(pooled.Object.Count);
 
-                foreach (var tuple in pooled.Object)
+                foreach (var (name, offset, size) in pooled.Object)
                 {
                     writer.WriteInt32((int)MetadataImageKind.Module);
-                    writer.WriteString(tuple.name);
-                    writer.WriteInt64(tuple.offset);
-                    writer.WriteInt64(tuple.size);
+                    writer.WriteString(name);
+                    writer.WriteInt64(offset);
+                    writer.WriteInt64(size);
                 }
 
                 return true;
@@ -488,8 +488,8 @@ namespace Microsoft.CodeAnalysis.Execution
 
             Contract.ThrowIfFalse(metadataKind == MetadataImageKind.Module);
 
-            var moduleInfo = ReadModuleMetadataFrom(reader, kind, cancellationToken);
-            return (moduleInfo.metadata, ImmutableArray.Create(moduleInfo.storage));
+            var (metadata, storage) = ReadModuleMetadataFrom(reader, kind, cancellationToken);
+            return (metadata, ImmutableArray.Create(storage));
         }
 
         private (ModuleMetadata metadata, ITemporaryStreamStorage storage) ReadModuleMetadataFrom(
