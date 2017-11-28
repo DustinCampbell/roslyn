@@ -211,11 +211,11 @@ namespace Microsoft.VisualStudio.LanguageServices.Remote
                 using (Logger.LogBlock(FunctionId.RemoteHostClientService_AddGlobalAssetsAsync, cancellationToken))
                 {
                     var snapshotService = _workspace.Services.GetService<IRemotableDataService>();
-                    var assetBuilder = new CustomAssetBuilder(_workspace);
+                    var assetFactory = new CustomAssetFactory(_workspace);
 
                     foreach (var reference in _analyzerService.GetHostAnalyzerReferences())
                     {
-                        var asset = assetBuilder.Build(reference, cancellationToken);
+                        var asset = assetFactory.Create(reference, cancellationToken);
 
                         builder.Add(asset.Checksum);
                         snapshotService.AddGlobalAsset(reference, asset, cancellationToken);

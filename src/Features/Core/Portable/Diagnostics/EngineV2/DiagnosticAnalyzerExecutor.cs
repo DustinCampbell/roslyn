@@ -186,8 +186,8 @@ namespace Microsoft.CodeAnalysis.Diagnostics.EngineV2
                 }
 
                 // otherwise, we need to build one.
-                var assetBuilder = new CustomAssetBuilder(solution);
-                var asset = assetBuilder.Build(options, language, cancellationToken);
+                var assetFactory = new CustomAssetFactory(solution);
+                var asset = assetFactory.Create(options, language, cancellationToken);
 
                 _lastOptionSetPerLanguage[language] = ValueTuple.Create(options, asset);
                 return asset;

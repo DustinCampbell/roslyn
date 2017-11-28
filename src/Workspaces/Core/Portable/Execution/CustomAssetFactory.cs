@@ -9,37 +9,36 @@ using Microsoft.CodeAnalysis.Host;
 namespace Microsoft.CodeAnalysis.Execution
 {
     /// <summary>
-    /// builder to create custom asset which is not part of solution but want to participate in <see cref="IRemotableDataService"/>
+    /// Factory to create custom assets that are not part of a solution but want to participate in <see cref="IRemotableDataService"/>
     /// </summary>
-    internal class CustomAssetBuilder
+    internal class CustomAssetFactory
     {
         private readonly Serializer _serializer;
 
-        private CustomAssetBuilder(HostWorkspaceServices services)
+        private CustomAssetFactory(HostWorkspaceServices services)
         {
             _serializer = new Serializer(services);
         }
 
-        public CustomAssetBuilder(Solution solution)
+        public CustomAssetFactory(Solution solution)
             : this(solution.Workspace)
         {
         }
 
-        public CustomAssetBuilder(Workspace workspace)
+        public CustomAssetFactory(Workspace workspace)
             : this(workspace.Services)
         {
         }
 
-        public CustomAsset Build(OptionSet options, string language, CancellationToken cancellationToken)
+        public CustomAsset Create(OptionSet options, string language, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             return new SimpleCustomAsset(WellKnownSynchronizationKind.OptionSet,
-                (writer, cancellationTokenOnStreamWriting) =>
-                    _serializer.SerializeOptionSet(options, language, writer, cancellationTokenOnStreamWriting));
+                (writer, cancellationTokenOnStreamWriting) => _serializer.SerializeOptionSet(options, language, writer, cancellationTokenOnStreamWriting));
         }
 
-        public CustomAsset Build(AnalyzerReference reference, CancellationToken cancellationToken)
+        public CustomAsset Create(AnalyzerReference reference, CancellationToken cancellationToken)
         {
             return new WorkspaceAnalyzerReferenceAsset(reference, _serializer);
         }

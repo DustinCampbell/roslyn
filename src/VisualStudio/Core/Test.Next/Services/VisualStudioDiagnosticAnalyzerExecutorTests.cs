@@ -140,9 +140,9 @@ End Class";
 
                 // add host analyzer as global assets
                 var snapshotService = workspace.Services.GetService<IRemotableDataService>();
-                var assetBuilder = new CustomAssetBuilder(workspace);
+                var assetFactory = new CustomAssetFactory(workspace);
 
-                var asset = assetBuilder.Build(analyzerReference, CancellationToken.None);
+                var asset = assetFactory.Create(analyzerReference, CancellationToken.None);
                 snapshotService.AddGlobalAsset(analyzerReference, asset, CancellationToken.None);
 
                 var client = await workspace.Services.GetService<IRemoteHostClientService>().TryGetRemoteHostClientAsync(CancellationToken.None);

@@ -606,10 +606,10 @@ namespace Microsoft.CodeAnalysis.UnitTests
 
         private static async Task VerifyOptionSetsAsync(Workspace workspace, string language)
         {
-            var assetBuilder = new CustomAssetBuilder(workspace);
+            var assetFactory = new CustomAssetFactory(workspace);
             var serializer = new Serializer(workspace);
 
-            var asset = assetBuilder.Build(workspace.Options, language, CancellationToken.None);
+            var asset = assetFactory.Create(workspace.Options, language, CancellationToken.None);
 
             using (var stream = SerializableBytes.CreateWritableStream())
             using (var writer = new ObjectWriter(stream))
@@ -620,7 +620,7 @@ namespace Microsoft.CodeAnalysis.UnitTests
                 using (var reader = ObjectReader.TryGetReader(stream))
                 {
                     var recovered = serializer.Deserialize<OptionSet>(asset.Kind, reader, CancellationToken.None);
-                    var assetFromStorage = assetBuilder.Build(recovered, language, CancellationToken.None);
+                    var assetFromStorage = assetFactory.Create(recovered, language, CancellationToken.None);
 
                     Assert.Equal(asset.Checksum, assetFromStorage.Checksum);
 
