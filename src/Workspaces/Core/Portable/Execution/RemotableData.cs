@@ -16,19 +16,19 @@ namespace Microsoft.CodeAnalysis.Execution
 
         /// <summary>
         /// Indicates what kind of object it is
-        /// <see cref="WellKnownSynchronizationKind"/> for examples.
+        /// <see cref="SerializationKind"/> for examples.
         /// 
         /// this will be used in tranportation framework and deserialization service
         /// to hand shake how to send over data and deserialize serialized data
         /// </summary>
-        public readonly WellKnownSynchronizationKind Kind;
+        public readonly SerializationKind Kind;
 
         /// <summary>
         /// Checksum of this object
         /// </summary>
         public readonly Checksum Checksum;
 
-        protected RemotableData(Checksum checksum, WellKnownSynchronizationKind kind)
+        protected RemotableData(Checksum checksum, SerializationKind kind)
         {
             Checksum = checksum;
             Kind = kind;
@@ -47,7 +47,7 @@ namespace Microsoft.CodeAnalysis.Execution
         private sealed class NullRemotableData : RemotableData
         {
             public NullRemotableData() :
-                base(Checksum.Null, WellKnownSynchronizationKind.Null)
+                base(Checksum.Null, SerializationKind.Null)
             {
                 // null object has null kind and null checksum. 
                 // this null object is known to checksum framework and transportation framework to handle null case

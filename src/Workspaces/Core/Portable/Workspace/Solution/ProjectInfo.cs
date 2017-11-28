@@ -475,7 +475,7 @@ namespace Microsoft.CodeAnalysis
                 {
                     if (_lazyChecksum == null)
                     {
-                        _lazyChecksum = Checksum.Create(WellKnownSynchronizationKind.ProjectAttributes, this);
+                        _lazyChecksum = Checksum.Create(SerializationKind.ProjectAttributes, this);
                     }
 
                     return _lazyChecksum;

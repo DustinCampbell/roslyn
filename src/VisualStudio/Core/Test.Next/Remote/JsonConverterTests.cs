@@ -23,7 +23,7 @@ namespace Roslyn.VisualStudio.Next.UnitTests.Remote
         [Fact, Trait(Traits.Feature, Traits.Features.RemoteHost)]
         public void TestChecksum()
         {
-            var checksum = Checksum.Create(WellKnownSynchronizationKind.Null, ImmutableArray.CreateRange(Guid.NewGuid().ToByteArray()));
+            var checksum = Checksum.Create(SerializationKind.Null, ImmutableArray.CreateRange(Guid.NewGuid().ToByteArray()));
             VerifyJsonSerialization(checksum);
         }
 
@@ -132,7 +132,7 @@ namespace Roslyn.VisualStudio.Next.UnitTests.Remote
         [Fact, Trait(Traits.Feature, Traits.Features.RemoteHost)]
         public void TestPinnedSolutionInfo()
         {
-            var checksum = Checksum.Create(WellKnownSynchronizationKind.Null, ImmutableArray.CreateRange(Guid.NewGuid().ToByteArray()));
+            var checksum = Checksum.Create(SerializationKind.Null, ImmutableArray.CreateRange(Guid.NewGuid().ToByteArray()));
             VerifyJsonSerialization(new PinnedSolutionInfo(scopeId: 10, fromPrimaryBranch: false, solutionChecksum: checksum), (x, y) =>
             {
                 return (x.ScopeId == y.ScopeId && x.FromPrimaryBranch == y.FromPrimaryBranch && x.SolutionChecksum == y.SolutionChecksum) ? 0 : 1;

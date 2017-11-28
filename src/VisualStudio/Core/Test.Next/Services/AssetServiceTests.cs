@@ -24,7 +24,7 @@ namespace Roslyn.VisualStudio.Next.UnitTests.Remote
         public async Task TestAssets()
         {
             var sessionId = 0;
-            var checksum = Checksum.Create(WellKnownSynchronizationKind.Null, ImmutableArray.CreateRange(Guid.NewGuid().ToByteArray()));
+            var checksum = Checksum.Create(SerializationKind.Null, ImmutableArray.CreateRange(Guid.NewGuid().ToByteArray()));
             var data = new object();
 
             var storage = new AssetStorage();

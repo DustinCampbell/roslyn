@@ -139,7 +139,7 @@ namespace Microsoft.CodeAnalysis
                 {
                     if (_lazyChecksum == null)
                     {
-                        _lazyChecksum = Checksum.Create(WellKnownSynchronizationKind.SolutionAttributes, this);
+                        _lazyChecksum = Checksum.Create(SerializationKind.SolutionAttributes, this);
                     }
 
                     return _lazyChecksum;

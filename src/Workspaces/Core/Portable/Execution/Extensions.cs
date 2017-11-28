@@ -15,30 +15,30 @@ namespace Microsoft.CodeAnalysis.Execution
             return (T[])reader.ReadValue();
         }
 
-        public static WellKnownSynchronizationKind GetWellKnownSynchronizationKind(this object value)
+        public static SerializationKind GetWellKnownSynchronizationKind(this object value)
         {
             switch (value)
             {
-                case SolutionStateChecksums _: return WellKnownSynchronizationKind.SolutionState;
-                case ProjectStateChecksums _: return WellKnownSynchronizationKind.ProjectState;
-                case DocumentStateChecksums _: return WellKnownSynchronizationKind.DocumentState;
-                case ProjectChecksumCollection _: return WellKnownSynchronizationKind.Projects;
-                case DocumentChecksumCollection _: return WellKnownSynchronizationKind.Documents;
-                case TextDocumentChecksumCollection _: return WellKnownSynchronizationKind.TextDocuments;
-                case ProjectReferenceChecksumCollection _: return WellKnownSynchronizationKind.ProjectReferences;
-                case MetadataReferenceChecksumCollection _: return WellKnownSynchronizationKind.MetadataReferences;
-                case AnalyzerReferenceChecksumCollection _: return WellKnownSynchronizationKind.AnalyzerReferences;
-                case SolutionInfo.SolutionAttributes _: return WellKnownSynchronizationKind.SolutionAttributes;
-                case ProjectInfo.ProjectAttributes _: return WellKnownSynchronizationKind.ProjectAttributes;
-                case DocumentInfo.DocumentAttributes _: return WellKnownSynchronizationKind.DocumentAttributes;
-                case CompilationOptions _: return WellKnownSynchronizationKind.CompilationOptions;
-                case ParseOptions _: return WellKnownSynchronizationKind.ParseOptions;
-                case ProjectReference _: return WellKnownSynchronizationKind.ProjectReference;
-                case MetadataReference _: return WellKnownSynchronizationKind.MetadataReference;
-                case AnalyzerReference _: return WellKnownSynchronizationKind.AnalyzerReference;
-                case TextDocumentState _: return WellKnownSynchronizationKind.RecoverableSourceText;
-                case SourceText _: return WellKnownSynchronizationKind.SourceText;
-                case OptionSet _: return WellKnownSynchronizationKind.OptionSet;
+                case SolutionStateChecksums _: return SerializationKind.SolutionState;
+                case ProjectStateChecksums _: return SerializationKind.ProjectState;
+                case DocumentStateChecksums _: return SerializationKind.DocumentState;
+                case ProjectChecksumCollection _: return SerializationKind.Projects;
+                case DocumentChecksumCollection _: return SerializationKind.Documents;
+                case TextDocumentChecksumCollection _: return SerializationKind.TextDocuments;
+                case ProjectReferenceChecksumCollection _: return SerializationKind.ProjectReferences;
+                case MetadataReferenceChecksumCollection _: return SerializationKind.MetadataReferences;
+                case AnalyzerReferenceChecksumCollection _: return SerializationKind.AnalyzerReferences;
+                case SolutionInfo.SolutionAttributes _: return SerializationKind.SolutionAttributes;
+                case ProjectInfo.ProjectAttributes _: return SerializationKind.ProjectAttributes;
+                case DocumentInfo.DocumentAttributes _: return SerializationKind.DocumentAttributes;
+                case CompilationOptions _: return SerializationKind.CompilationOptions;
+                case ParseOptions _: return SerializationKind.ParseOptions;
+                case ProjectReference _: return SerializationKind.ProjectReference;
+                case MetadataReference _: return SerializationKind.MetadataReference;
+                case AnalyzerReference _: return SerializationKind.AnalyzerReference;
+                case TextDocumentState _: return SerializationKind.RecoverableSourceText;
+                case SourceText _: return SerializationKind.SourceText;
+                case OptionSet _: return SerializationKind.OptionSet;
             }
 
             throw ExceptionUtilities.UnexpectedValue(value);

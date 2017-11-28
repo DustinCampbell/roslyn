@@ -84,7 +84,7 @@ This data should always be correct as we're never persisting the data between se
                         var responseChecksum = Checksum.ReadFrom(reader);
                         Contract.ThrowIfFalse(checksums.Contains(responseChecksum));
 
-                        var kind = (WellKnownSynchronizationKind)reader.ReadInt32();
+                        var kind = (SerializationKind)reader.ReadInt32();
 
                         // in service hub, cancellation means simply closed stream
                         var @object = AssetService.Deserialize<object>(kind, reader, cancellationToken);

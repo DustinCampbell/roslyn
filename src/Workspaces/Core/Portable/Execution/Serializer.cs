@@ -63,21 +63,21 @@ namespace Microsoft.CodeAnalysis.Serialization
 
                 switch (kind)
                 {
-                    case WellKnownSynchronizationKind.Null:
+                    case SerializationKind.Null:
                         return Checksum.Null;
 
-                    case WellKnownSynchronizationKind.CompilationOptions:
-                    case WellKnownSynchronizationKind.ParseOptions:
-                    case WellKnownSynchronizationKind.ProjectReference:
+                    case SerializationKind.CompilationOptions:
+                    case SerializationKind.ParseOptions:
+                    case SerializationKind.ProjectReference:
                         return Checksum.Create(kind, value, this);
 
-                    case WellKnownSynchronizationKind.MetadataReference:
+                    case SerializationKind.MetadataReference:
                         return Checksum.Create(kind, _hostSerializationService.CreateChecksum((MetadataReference)value, cancellationToken));
 
-                    case WellKnownSynchronizationKind.AnalyzerReference:
+                    case SerializationKind.AnalyzerReference:
                         return Checksum.Create(kind, _hostSerializationService.CreateChecksum((AnalyzerReference)value, cancellationToken));
 
-                    case WellKnownSynchronizationKind.SourceText:
+                    case SerializationKind.SourceText:
                         return Checksum.Create(kind, ((SourceText)value).GetChecksum());
 
                     default:
@@ -104,37 +104,37 @@ namespace Microsoft.CodeAnalysis.Serialization
 
                 switch (kind)
                 {
-                    case WellKnownSynchronizationKind.Null:
+                    case SerializationKind.Null:
                         // do nothing
                         return;
 
-                    case WellKnownSynchronizationKind.SolutionAttributes:
-                    case WellKnownSynchronizationKind.ProjectAttributes:
-                    case WellKnownSynchronizationKind.DocumentAttributes:
+                    case SerializationKind.SolutionAttributes:
+                    case SerializationKind.ProjectAttributes:
+                    case SerializationKind.DocumentAttributes:
                         ((IObjectWritable)value).WriteTo(writer);
                         return;
 
-                    case WellKnownSynchronizationKind.CompilationOptions:
+                    case SerializationKind.CompilationOptions:
                         SerializeCompilationOptions((CompilationOptions)value, writer, cancellationToken);
                         return;
 
-                    case WellKnownSynchronizationKind.ParseOptions:
+                    case SerializationKind.ParseOptions:
                         SerializeParseOptions((ParseOptions)value, writer, cancellationToken);
                         return;
 
-                    case WellKnownSynchronizationKind.ProjectReference:
+                    case SerializationKind.ProjectReference:
                         SerializeProjectReference((ProjectReference)value, writer, cancellationToken);
                         return;
 
-                    case WellKnownSynchronizationKind.MetadataReference:
+                    case SerializationKind.MetadataReference:
                         SerializeMetadataReference((MetadataReference)value, writer, cancellationToken);
                         return;
 
-                    case WellKnownSynchronizationKind.AnalyzerReference:
+                    case SerializationKind.AnalyzerReference:
                         SerializeAnalyzerReference((AnalyzerReference)value, writer, usePathFromAssembly: true, cancellationToken: cancellationToken);
                         return;
 
-                    case WellKnownSynchronizationKind.SourceText:
+                    case SerializationKind.SourceText:
                         SerializeSourceText(storage: null, text: (SourceText)value, writer: writer, cancellationToken: cancellationToken);
                         return;
 
@@ -146,7 +146,7 @@ namespace Microsoft.CodeAnalysis.Serialization
             }
         }
 
-        public T Deserialize<T>(WellKnownSynchronizationKind kind, ObjectReader reader, CancellationToken cancellationToken)
+        public T Deserialize<T>(SerializationKind kind, ObjectReader reader, CancellationToken cancellationToken)
         {
             using (Logger.LogBlock(FunctionId.Serializer_Deserialize, kind.ToString(), cancellationToken))
             {
@@ -154,39 +154,39 @@ namespace Microsoft.CodeAnalysis.Serialization
 
                 switch (kind)
                 {
-                    case WellKnownSynchronizationKind.Null:
+                    case SerializationKind.Null:
                         return default;
 
-                    case WellKnownSynchronizationKind.SolutionState:
-                    case WellKnownSynchronizationKind.ProjectState:
-                    case WellKnownSynchronizationKind.DocumentState:
-                    case WellKnownSynchronizationKind.Projects:
-                    case WellKnownSynchronizationKind.Documents:
-                    case WellKnownSynchronizationKind.TextDocuments:
-                    case WellKnownSynchronizationKind.ProjectReferences:
-                    case WellKnownSynchronizationKind.MetadataReferences:
-                    case WellKnownSynchronizationKind.AnalyzerReferences:
+                    case SerializationKind.SolutionState:
+                    case SerializationKind.ProjectState:
+                    case SerializationKind.DocumentState:
+                    case SerializationKind.Projects:
+                    case SerializationKind.Documents:
+                    case SerializationKind.TextDocuments:
+                    case SerializationKind.ProjectReferences:
+                    case SerializationKind.MetadataReferences:
+                    case SerializationKind.AnalyzerReferences:
                         return (T)(object)DeserializeChecksumWithChildren(reader, cancellationToken);
 
-                    case WellKnownSynchronizationKind.SolutionAttributes:
+                    case SerializationKind.SolutionAttributes:
                         return (T)(object)SolutionInfo.SolutionAttributes.ReadFrom(reader);
-                    case WellKnownSynchronizationKind.ProjectAttributes:
+                    case SerializationKind.ProjectAttributes:
                         return (T)(object)ProjectInfo.ProjectAttributes.ReadFrom(reader);
-                    case WellKnownSynchronizationKind.DocumentAttributes:
+                    case SerializationKind.DocumentAttributes:
                         return (T)(object)DocumentInfo.DocumentAttributes.ReadFrom(reader);
-                    case WellKnownSynchronizationKind.CompilationOptions:
+                    case SerializationKind.CompilationOptions:
                         return (T)(object)DeserializeCompilationOptions(reader, cancellationToken);
-                    case WellKnownSynchronizationKind.ParseOptions:
+                    case SerializationKind.ParseOptions:
                         return (T)(object)DeserializeParseOptions(reader, cancellationToken);
-                    case WellKnownSynchronizationKind.ProjectReference:
+                    case SerializationKind.ProjectReference:
                         return (T)(object)DeserializeProjectReference(reader, cancellationToken);
-                    case WellKnownSynchronizationKind.MetadataReference:
+                    case SerializationKind.MetadataReference:
                         return (T)(object)DeserializeMetadataReference(reader, cancellationToken);
-                    case WellKnownSynchronizationKind.AnalyzerReference:
+                    case SerializationKind.AnalyzerReference:
                         return (T)(object)DeserializeAnalyzerReference(reader, cancellationToken);
-                    case WellKnownSynchronizationKind.SourceText:
+                    case SerializationKind.SourceText:
                         return (T)(object)DeserializeSourceText(reader, cancellationToken);
-                    case WellKnownSynchronizationKind.OptionSet:
+                    case SerializationKind.OptionSet:
                         return (T)(object)DeserializeOptionSet(reader, cancellationToken);
 
                     default:
