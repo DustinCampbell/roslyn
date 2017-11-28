@@ -11,7 +11,7 @@ namespace Microsoft.CodeAnalysis.Execution
     /// <summary>
     /// Factory to create custom assets that are not part of a solution but want to participate in <see cref="IRemotableDataService"/>
     /// </summary>
-    internal class CustomAssetFactory
+    internal partial class CustomAssetFactory
     {
         private readonly Serializer _serializer;
 
