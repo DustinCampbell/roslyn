@@ -28,7 +28,7 @@ namespace Microsoft.CodeAnalysis.Execution
         /// </summary>
         public readonly Checksum Checksum;
 
-        public RemotableData(Checksum checksum, WellKnownSynchronizationKind kind)
+        protected RemotableData(Checksum checksum, WellKnownSynchronizationKind kind)
         {
             Checksum = checksum;
             Kind = kind;

@@ -13,7 +13,7 @@ namespace Microsoft.CodeAnalysis.Execution
     /// </summary>
     internal abstract class SolutionAsset : RemotableData
     {
-        protected SolutionAsset(Checksum checksum, WellKnownSynchronizationKind kind) 
+        private SolutionAsset(Checksum checksum, WellKnownSynchronizationKind kind) 
             : base(checksum, kind)
         {
         }
@@ -35,7 +35,7 @@ namespace Microsoft.CodeAnalysis.Execution
             return new SimpleSolutionAsset(checksum, value, serializer);
         }
 
-        internal sealed class SimpleSolutionAsset : SolutionAsset
+        private sealed class SimpleSolutionAsset : SolutionAsset
         {
             private readonly object _value;
             private readonly Serializer _serializer;
@@ -54,7 +54,7 @@ namespace Microsoft.CodeAnalysis.Execution
             }
         }
 
-        internal sealed class SourceTextAsset : SolutionAsset
+        private sealed class SourceTextAsset : SolutionAsset
         {
             // TODO: the way recoverable text works is a bit different than how recoverable tree works.
             //       due to that, we can't just hold onto recoverable text but have to hold onto document state.

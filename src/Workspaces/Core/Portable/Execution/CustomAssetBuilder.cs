@@ -15,17 +15,19 @@ namespace Microsoft.CodeAnalysis.Execution
     {
         private readonly Serializer _serializer;
 
-        public CustomAssetBuilder(Solution solution) : this(solution.Workspace)
-        {
-        }
-
-        public CustomAssetBuilder(Workspace workspace) : this(workspace.Services)
-        {
-        }
-
-        public CustomAssetBuilder(HostWorkspaceServices services)
+        private CustomAssetBuilder(HostWorkspaceServices services)
         {
             _serializer = new Serializer(services);
+        }
+
+        public CustomAssetBuilder(Solution solution)
+            : this(solution.Workspace)
+        {
+        }
+
+        public CustomAssetBuilder(Workspace workspace)
+            : this(workspace.Services)
+        {
         }
 
         public CustomAsset Build(OptionSet options, string language, CancellationToken cancellationToken)
