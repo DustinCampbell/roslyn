@@ -8,7 +8,7 @@ using Roslyn.Utilities;
 namespace Microsoft.CodeAnalysis.Execution
 {
     /// <summary>
-    /// This deal with serializing/deserializing language specific data
+    /// This service handles serializing and deserializing language-specific options.
     /// </summary>
     internal interface IOptionsSerializationService : ILanguageService
     {
