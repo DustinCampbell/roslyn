@@ -99,7 +99,7 @@ namespace Microsoft.CodeAnalysis.Execution
 
         public IReadOnlyDictionary<Checksum, RemotableData> GetRemotableData(int scopeId, IEnumerable<Checksum> checksums, CancellationToken cancellationToken)
         {
-            using (var searchingChecksumsLeft = Creator.CreateChecksumSet(checksums))
+            using (var searchingChecksumsLeft = PooledObjects.CreateChecksumSet(checksums))
             {
                 var numberOfChecksumsToSearch = searchingChecksumsLeft.Object.Count;
                 var result = new Dictionary<Checksum, RemotableData>(numberOfChecksumsToSearch);

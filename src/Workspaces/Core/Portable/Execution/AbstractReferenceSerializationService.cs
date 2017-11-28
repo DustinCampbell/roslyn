@@ -424,7 +424,7 @@ namespace Microsoft.CodeAnalysis.Execution
                 return false;
             }
 
-            using (var pooled = Creator.CreateList<(string name, long offset, long size)>())
+            using (var pooled = PooledObjects.CreateList<(string name, long offset, long size)>())
             {
                 foreach (var storage in storages)
                 {
@@ -467,8 +467,8 @@ namespace Microsoft.CodeAnalysis.Execution
             var metadataKind = (MetadataImageKind)imageKind;
             if (metadataKind == MetadataImageKind.Assembly)
             {
-                using (var pooledMetadata = Creator.CreateList<ModuleMetadata>())
-                using (var pooledStorage = Creator.CreateList<ITemporaryStreamStorage>())
+                using (var pooledMetadata = PooledObjects.CreateList<ModuleMetadata>())
+                using (var pooledStorage = PooledObjects.CreateList<ITemporaryStreamStorage>())
                 {
                     var count = reader.ReadInt32();
                     for (var i = 0; i < count; i++)

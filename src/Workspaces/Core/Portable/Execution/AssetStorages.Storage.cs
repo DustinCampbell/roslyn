@@ -28,14 +28,14 @@ namespace Microsoft.CodeAnalysis.Execution
             // additional assets that is not part of solution but added explicitly
             private ConcurrentDictionary<Checksum, CustomAsset> _additionalAssets;
 
+            public SolutionState SolutionState { get; }
+
             public Storage(SolutionState solutionState)
             {
                 SolutionState = solutionState;
 
                 _serializer = new Serializer(SolutionState.Workspace);
             }
-
-            public SolutionState SolutionState { get; }
 
             public void AddAdditionalAsset(CustomAsset asset)
             {
@@ -90,7 +90,7 @@ namespace Microsoft.CodeAnalysis.Execution
             {
                 // this will iterate through candidate checksums to see whether that checksum exists in both
                 // checksum set we are currently searching for and checksums current node contains
-                using (var removed = Creator.CreateList<Checksum>())
+                using (var removed = PooledObjects.CreateList<Checksum>())
                 {
                     // we have 2 sets of checksums. one we are searching for and ones this node contains.
                     // we only need to iterate one of them to see this node contains what we are looking for.
@@ -173,8 +173,8 @@ namespace Microsoft.CodeAnalysis.Execution
 
             public RemotableData Find(Checksum checksum)
             {
-                using (var checksumPool = Creator.CreateChecksumSet(SpecializedCollections.SingletonEnumerable(checksum)))
-                using (var resultPool = Creator.CreateResultSet())
+                using (var checksumPool = PooledObjects.CreateChecksumSet(SpecializedCollections.SingletonEnumerable(checksum)))
+                using (var resultPool = PooledObjects.CreateResultSet())
                 {
                     Append(checksumPool.Object, resultPool.Object);
 
@@ -192,7 +192,7 @@ namespace Microsoft.CodeAnalysis.Execution
 
             public void Append(HashSet<Checksum> searchingChecksumsLeft, Dictionary<Checksum, RemotableData> result)
             {
-                using (var resultPool = Creator.CreateResultSet())
+                using (var resultPool = PooledObjects.CreateResultSet())
                 {
                     Append(searchingChecksumsLeft, resultPool.Object);
 

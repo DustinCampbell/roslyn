@@ -7,7 +7,6 @@ using System.Threading;
 using System.Xml.Linq;
 using Microsoft.CodeAnalysis.CodeStyle;
 using Microsoft.CodeAnalysis.Diagnostics.Analyzers.NamingStyles;
-using Microsoft.CodeAnalysis.Editing;
 using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.Simplification;
 using Roslyn.Utilities;
@@ -65,8 +64,8 @@ namespace Microsoft.CodeAnalysis.Execution
             writer.WriteBoolean(options.Deterministic);
             writer.WriteBoolean(options.PublicSign);
 
-            // REVIEW: What should I do with these. we probably need to implement either out own one
-            //         or somehow share these as service....
+            // REVIEW: What should I do with these? We either need to implement either our own
+            //         or somehow share these as service...
             //
             // XmlReferenceResolver xmlReferenceResolver
             // SourceReferenceResolver sourceReferenceResolver
@@ -315,7 +314,7 @@ namespace Microsoft.CodeAnalysis.Execution
                 var value = NamingStylePreferences.FromXElement(XElement.Parse(xmlText));
                 return options.WithChangedOption(option, value);
             }
-            catch (System.Exception)
+            catch
             {
                 return options;
             }
@@ -338,16 +337,15 @@ namespace Microsoft.CodeAnalysis.Execution
             {
                 var value = NamingStylePreferences.FromXElement(XElement.Parse(xmlText));
                 return options.WithChangedOption(option, language, value);
-
             }
-            catch (System.Exception)
+            catch
             {
                 return options;
             }
         }
 
         /// <summary>
-        /// this is not real option set. it doesn't have all options defined in host. but only those
+        /// This is not a real option set. It doesn't have all options defined in host--only those
         /// we pre-selected.
         /// </summary>
         protected class SerializedPartialOptionSet : OptionSet
