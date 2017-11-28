@@ -9,7 +9,7 @@ using Roslyn.Utilities;
 namespace Microsoft.CodeAnalysis.Execution
 {
     /// <summary>
-    /// This deals with how to serialize/deserialize references that we have multiple implementations 
+    /// This service handles serialization and deserialization of references that have multiple implementations 
     /// between different layers such as workspace, host - ex, VS.
     /// </summary>
     internal interface IReferenceSerializationService : IWorkspaceService
