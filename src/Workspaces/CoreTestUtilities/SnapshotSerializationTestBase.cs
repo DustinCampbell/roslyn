@@ -205,7 +205,7 @@ namespace Microsoft.CodeAnalysis.UnitTests
             int expectedAnalyzerReferenceCount,
             int expectedAdditionalDocumentCount)
         {
-            VerifyChecksumInService(snapshotService, projectObject.Checksum, projectObject.GetWellKnownSynchronizationKind());
+            VerifyChecksumInService(snapshotService, projectObject.Checksum, projectObject.GetSerializationKind());
             VerifyChecksumInService(snapshotService, projectObject.Info, SerializationKind.ProjectAttributes);
             VerifyChecksumInService(snapshotService, projectObject.CompilationOptions, SerializationKind.CompilationOptions);
             VerifyChecksumInService(snapshotService, projectObject.ParseOptions, SerializationKind.ParseOptions);
@@ -221,7 +221,7 @@ namespace Microsoft.CodeAnalysis.UnitTests
 
         internal static void VerifyCollectionInService(IRemotableDataService snapshotService, ChecksumCollection checksums, int expectedCount, SerializationKind expectedItemKind)
         {
-            VerifyChecksumInService(snapshotService, checksums.Checksum, checksums.GetWellKnownSynchronizationKind());
+            VerifyChecksumInService(snapshotService, checksums.Checksum, checksums.GetSerializationKind());
             Assert.Equal(checksums.Count, expectedCount);
 
             foreach (var checksum in checksums)
@@ -243,7 +243,7 @@ namespace Microsoft.CodeAnalysis.UnitTests
 
         internal static void VerifySnapshotInService(IRemotableDataService snapshotService, DocumentStateChecksums documentObject)
         {
-            VerifyChecksumInService(snapshotService, documentObject.Checksum, documentObject.GetWellKnownSynchronizationKind());
+            VerifyChecksumInService(snapshotService, documentObject.Checksum, documentObject.GetSerializationKind());
             VerifyChecksumInService(snapshotService, documentObject.Info, SerializationKind.DocumentAttributes);
             VerifyChecksumInService(snapshotService, documentObject.Text, SerializationKind.SourceText);
         }

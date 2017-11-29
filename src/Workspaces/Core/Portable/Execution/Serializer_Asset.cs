@@ -22,21 +22,18 @@ namespace Microsoft.CodeAnalysis.Serialization
             cancellationToken.ThrowIfCancellationRequested();
 
             writer.WriteInt32((int)text.ChecksumAlgorithm);
-            _hostSerializationService.WriteTo(text.Encoding, writer, cancellationToken);
+            _referenceSerialization.WriteTo(text.Encoding, writer, cancellationToken);
 
-            // TODO: refactor this part in its own abstraction (Bits) that has multiple sub types
-            //       rather than using enums
             if (storage != null && storage.Name != null)
             {
-                writer.WriteInt32((int)SerializationKinds.MemoryMapFile);
-                writer.WriteString(storage.Name);
-                writer.WriteInt64(storage.Offset);
-                writer.WriteInt64(storage.Size);
-                return;
+                writer.WriteDataLocation(DataLocation.MemoryMapFile);
+                writer.WriteMemoryMapFileProperties(storage.Name, storage.Offset, storage.Size);
             }
-
-            writer.WriteInt32((int)SerializationKinds.Bits);
-            text.WriteTo(writer, cancellationToken);
+            else
+            {
+                writer.WriteDataLocation(DataLocation.Stream);
+                text.WriteTo(writer, cancellationToken);
+            }
         }
 
         private SourceText DeserializeSourceText(ObjectReader reader, CancellationToken cancellationToken)
@@ -45,22 +42,20 @@ namespace Microsoft.CodeAnalysis.Serialization
 
             // REVIEW: why IDE services doesnt care about checksumAlgorithm?
             var checksumAlgorithm = (SourceHashAlgorithm)reader.ReadInt32();
-            var encoding = _hostSerializationService.ReadEncodingFrom(reader, cancellationToken);
+            var encoding = _referenceSerialization.ReadEncodingFrom(reader, cancellationToken);
 
-            var kind = (SerializationKinds)reader.ReadInt32();
-            if (kind == SerializationKinds.MemoryMapFile)
+            var location = reader.ReadDataLocation();
+            if (location == DataLocation.MemoryMapFile)
             {
-                var name = reader.ReadString();
-                var offset = reader.ReadInt64();
-                var size = reader.ReadInt64();
+                var (name, offset, size) = reader.ReadMemoryMapFileLocation();
 
-                var storage = _tempService.AttachTemporaryTextStorage(name, offset, size, encoding, cancellationToken);
+                var storage = _temporaryStorage.AttachTemporaryTextStorage(name, offset, size, encoding, cancellationToken);
 
                 return storage.ReadText(cancellationToken);
             }
 
-            Contract.ThrowIfFalse(kind == SerializationKinds.Bits);
-            return SourceTextExtensions.ReadFrom(_textService, reader, encoding, cancellationToken);
+            Contract.ThrowIfFalse(location == DataLocation.Stream);
+            return _textFactory.ReadFrom(reader, encoding, cancellationToken);
         }
 
         public void SerializeCompilationOptions(CompilationOptions options, ObjectWriter writer, CancellationToken cancellationToken)
@@ -132,25 +127,25 @@ namespace Microsoft.CodeAnalysis.Serialization
         public void SerializeMetadataReference(MetadataReference reference, ObjectWriter writer, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            _hostSerializationService.WriteTo(reference, writer, cancellationToken);
+            _referenceSerialization.WriteTo(reference, writer, cancellationToken);
         }
 
         private MetadataReference DeserializeMetadataReference(ObjectReader reader, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return _hostSerializationService.ReadMetadataReferenceFrom(reader, cancellationToken);
+            return _referenceSerialization.ReadMetadataReferenceFrom(reader, cancellationToken);
         }
 
         public void SerializeAnalyzerReference(AnalyzerReference reference, ObjectWriter writer, bool usePathFromAssembly, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            _hostSerializationService.WriteTo(reference, writer, usePathFromAssembly, cancellationToken);
+            _referenceSerialization.WriteTo(reference, writer, usePathFromAssembly, cancellationToken);
         }
 
         private AnalyzerReference DeserializeAnalyzerReference(ObjectReader reader, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return _hostSerializationService.ReadAnalyzerReferenceFrom(reader, cancellationToken);
+            return _referenceSerialization.ReadAnalyzerReferenceFrom(reader, cancellationToken);
         }
     }
 }

@@ -41,7 +41,7 @@ namespace Microsoft.CodeAnalysis.Execution
             private readonly Serializer _serializer;
 
             public SimpleSolutionAsset(Checksum checksum, object value, Serializer serializer) :
-                base(checksum, value.GetWellKnownSynchronizationKind())
+                base(checksum, value.GetSerializationKind())
             {
                 _value = value;
                 _serializer = serializer;

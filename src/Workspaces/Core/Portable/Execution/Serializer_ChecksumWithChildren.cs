@@ -9,7 +9,7 @@ using Roslyn.Utilities;
 namespace Microsoft.CodeAnalysis.Serialization
 {
     /// <summary>
-    /// serialize and deserialize objects to straem.
+    /// serialize and deserialize objects to stream.
     /// some of these could be moved into actual object, but putting everything here is a bit easier to find I believe.
     /// </summary>
     internal partial class Serializer
@@ -23,7 +23,7 @@ namespace Microsoft.CodeAnalysis.Serialization
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var kind = checksums.GetWellKnownSynchronizationKind();
+            var kind = checksums.GetSerializationKind();
             writer.WriteInt32((int)kind);
             checksums.Checksum.WriteTo(writer);
 

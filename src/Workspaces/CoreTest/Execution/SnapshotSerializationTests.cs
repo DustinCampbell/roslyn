@@ -536,7 +536,7 @@ namespace Microsoft.CodeAnalysis.UnitTests
 
                 using (var objectReader = ObjectReader.TryGetReader(stream))
                 {
-                    var newText = serializer.Deserialize<SourceText>(sourceText.GetWellKnownSynchronizationKind(), objectReader, CancellationToken.None);
+                    var newText = serializer.Deserialize<SourceText>(sourceText.GetSerializationKind(), objectReader, CancellationToken.None);
                     Assert.Equal(sourceText.ToString(), newText.ToString());
                 }
             }
@@ -554,7 +554,7 @@ namespace Microsoft.CodeAnalysis.UnitTests
 
                 using (var objectReader = ObjectReader.TryGetReader(stream))
                 {
-                    var newText = serializer.Deserialize<SourceText>(sourceText.GetWellKnownSynchronizationKind(), objectReader, CancellationToken.None);
+                    var newText = serializer.Deserialize<SourceText>(sourceText.GetSerializationKind(), objectReader, CancellationToken.None);
                     Assert.Equal(sourceText.ToString(), newText.ToString());
                 }
             }

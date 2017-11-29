@@ -15,7 +15,7 @@ namespace Microsoft.CodeAnalysis.Execution
             return (T[])reader.ReadValue();
         }
 
-        public static SerializationKind GetWellKnownSynchronizationKind(this object value)
+        public static SerializationKind GetSerializationKind(this object value)
         {
             switch (value)
             {
@@ -42,6 +42,32 @@ namespace Microsoft.CodeAnalysis.Execution
             }
 
             throw ExceptionUtilities.UnexpectedValue(value);
+        }
+
+        public static DataLocation ReadDataLocation(this ObjectReader reader)
+        {
+            return (DataLocation)reader.ReadInt32();
+        }
+
+        public static (string name, long offset, long size) ReadMemoryMapFileLocation(this ObjectReader reader)
+        {
+            var name = reader.ReadString();
+            var offset = reader.ReadInt64();
+            var size = reader.ReadInt64();
+
+            return (name, offset, size);
+        }
+
+        public static void WriteDataLocation(this ObjectWriter writer, DataLocation location)
+        {
+            writer.WriteInt32((int)location);
+        }
+
+        public static void WriteMemoryMapFileProperties(this ObjectWriter writer, string name, long offset, long size)
+        {
+            writer.WriteString(name);
+            writer.WriteInt64(offset);
+            writer.WriteInt64(size);
         }
     }
 }

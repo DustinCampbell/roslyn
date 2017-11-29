@@ -13,7 +13,7 @@ using Roslyn.Utilities;
 namespace Microsoft.CodeAnalysis.Serialization
 {
     /// <summary>
-    /// serialize and deserialize objects to straem.
+    /// serialize and deserialize objects to stream.
     /// some of these could be moved into actual object, but putting everything here is a bit easier to find I believe.
     /// 
     /// also, consider moving this serializer to use C# BOND serializer 
@@ -21,13 +21,13 @@ namespace Microsoft.CodeAnalysis.Serialization
     /// </summary>
     internal partial class Serializer
     {
-        private readonly HostWorkspaceServices _workspaceServices;
+        private readonly HostWorkspaceServices _hostServices;
 
-        private readonly IReferenceSerializationService _hostSerializationService;
-        private readonly ITemporaryStorageService2 _tempService;
-        private readonly ITextFactoryService _textService;
+        private readonly IReferenceSerializationService _referenceSerialization;
+        private readonly ITemporaryStorageService2 _temporaryStorage;
+        private readonly ITextFactoryService _textFactory;
 
-        private readonly ConcurrentDictionary<string, IOptionsSerializationService> _lazyLanguageSerializationService;
+        private readonly ConcurrentDictionary<string, IOptionsSerializationService> _lazyOptionsSerializationByLanguage;
 
         public Serializer(Solution solution) : this(solution.Workspace)
         {
@@ -37,20 +37,22 @@ namespace Microsoft.CodeAnalysis.Serialization
         {
         }
 
-        public Serializer(HostWorkspaceServices workspaceServices)
+        public Serializer(HostWorkspaceServices hostServices)
         {
-            _workspaceServices = workspaceServices;
+            _hostServices = hostServices;
 
-            _hostSerializationService = _workspaceServices.GetService<IReferenceSerializationService>();
-            _tempService = _workspaceServices.GetService<ITemporaryStorageService>() as ITemporaryStorageService2;
-            _textService = _workspaceServices.GetService<ITextFactoryService>();
+            _referenceSerialization = _hostServices.GetService<IReferenceSerializationService>();
+            _temporaryStorage = _hostServices.TemporaryStorage as ITemporaryStorageService2;
+            _textFactory = _hostServices.TextFactory;
 
-            _lazyLanguageSerializationService = new ConcurrentDictionary<string, IOptionsSerializationService>(concurrencyLevel: 2, capacity: _workspaceServices.SupportedLanguages.Count());
+            _lazyOptionsSerializationByLanguage = new ConcurrentDictionary<string, IOptionsSerializationService>(
+                concurrencyLevel: 2,
+                capacity: _hostServices.SupportedLanguages.Count());
         }
 
         public Checksum CreateChecksum(object value, CancellationToken cancellationToken)
         {
-            var kind = value.GetWellKnownSynchronizationKind();
+            var kind = value.GetSerializationKind();
 
             using (Logger.LogBlock(FunctionId.Serializer_CreateChecksum, kind.ToStringFast(), cancellationToken))
             {
@@ -72,17 +74,16 @@ namespace Microsoft.CodeAnalysis.Serialization
                         return Checksum.Create(kind, value, this);
 
                     case SerializationKind.MetadataReference:
-                        return Checksum.Create(kind, _hostSerializationService.CreateChecksum((MetadataReference)value, cancellationToken));
+                        return Checksum.Create(kind, _referenceSerialization.CreateChecksum((MetadataReference)value, cancellationToken));
 
                     case SerializationKind.AnalyzerReference:
-                        return Checksum.Create(kind, _hostSerializationService.CreateChecksum((AnalyzerReference)value, cancellationToken));
+                        return Checksum.Create(kind, _referenceSerialization.CreateChecksum((AnalyzerReference)value, cancellationToken));
 
                     case SerializationKind.SourceText:
                         return Checksum.Create(kind, ((SourceText)value).GetChecksum());
 
                     default:
-                        // object that is not part of solution is not supported since we don't know what inputs are required to
-                        // serialize it
+                        // object that is not part of solution is not supported since we don't know what inputs are required to serialize it
                         throw ExceptionUtilities.UnexpectedValue(kind);
                 }
             }
@@ -90,7 +91,7 @@ namespace Microsoft.CodeAnalysis.Serialization
 
         public void Serialize(object value, ObjectWriter writer, CancellationToken cancellationToken)
         {
-            var kind = value.GetWellKnownSynchronizationKind();
+            var kind = value.GetSerializationKind();
 
             using (Logger.LogBlock(FunctionId.Serializer_Serialize, kind.ToString(), cancellationToken))
             {
@@ -139,8 +140,7 @@ namespace Microsoft.CodeAnalysis.Serialization
                         return;
 
                     default:
-                        // object that is not part of solution is not supported since we don't know what inputs are required to
-                        // serialize it
+                        // object that is not part of solution is not supported since we don't know what inputs are required to serialize it
                         throw ExceptionUtilities.UnexpectedValue(kind);
                 }
             }
@@ -197,15 +197,7 @@ namespace Microsoft.CodeAnalysis.Serialization
 
         private IOptionsSerializationService GetOptionsSerializationService(string languageName)
         {
-            return _lazyLanguageSerializationService.GetOrAdd(languageName, n => _workspaceServices.GetLanguageServices(n).GetService<IOptionsSerializationService>());
+            return _lazyOptionsSerializationByLanguage.GetOrAdd(languageName, n => _hostServices.GetLanguageServices(n).GetService<IOptionsSerializationService>());
         }
-    }
-
-    // TODO: convert this to sub class rather than using enum with if statement.
-    internal enum SerializationKinds
-    {
-        Bits,
-        FilePath,
-        MemoryMapFile
     }
 }

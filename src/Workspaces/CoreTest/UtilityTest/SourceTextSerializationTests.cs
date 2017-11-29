@@ -15,7 +15,7 @@ namespace Microsoft.CodeAnalysis.UnitTests
         [Fact]
         public void TestSourceTextSerialization()
         {
-            var textService = new TextFactoryService();
+            var textFactory = new TextFactoryService();
 
             var maxSize = SourceTextExtensions.SourceTextLengthThreshold * 3;
             var sb = new StringBuilder(0, maxSize);
@@ -33,7 +33,7 @@ namespace Microsoft.CodeAnalysis.UnitTests
 
                     using (var reader = ObjectReader.TryGetReader(stream))
                     {
-                        var recovered = SourceTextExtensions.ReadFrom(textService, reader, originalText.Encoding, CancellationToken.None);
+                        var recovered = textFactory.ReadFrom(reader, originalText.Encoding, CancellationToken.None);
 
                         Assert.Equal(originalText.ToString(), recovered.ToString());
                     }

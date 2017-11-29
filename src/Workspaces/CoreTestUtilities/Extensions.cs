@@ -59,7 +59,7 @@ namespace Microsoft.CodeAnalysis.UnitTests.Execution
     {
         public ImmutableArray<T> Children { get; }
 
-        public ChecksumObjectCollection(IRemotableDataService service, ChecksumCollection collection) : base(collection.Checksum, collection.GetWellKnownSynchronizationKind())
+        public ChecksumObjectCollection(IRemotableDataService service, ChecksumCollection collection) : base(collection.Checksum, collection.GetSerializationKind())
         {
             // using .Result here since we don't want to convert all calls to this to async.
             // and none of ChecksumWithChildren actually use async
