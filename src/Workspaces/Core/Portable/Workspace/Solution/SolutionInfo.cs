@@ -2,7 +2,7 @@
 
 using System;
 using System.Collections.Generic;
-using Microsoft.CodeAnalysis.Serialization;
+using Microsoft.CodeAnalysis.Remote.Serialization;
 using Microsoft.CodeAnalysis.Shared.Extensions;
 using Roslyn.Utilities;
 

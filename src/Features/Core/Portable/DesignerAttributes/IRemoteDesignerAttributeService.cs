@@ -2,7 +2,7 @@
 
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.Execution;
+using Microsoft.CodeAnalysis.Remote.Serialization;
 
 namespace Microsoft.CodeAnalysis.DesignerAttributes
 {

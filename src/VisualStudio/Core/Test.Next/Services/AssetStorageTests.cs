@@ -5,7 +5,7 @@ using System.Collections.Immutable;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Remote;
-using Microsoft.CodeAnalysis.Serialization;
+using Microsoft.CodeAnalysis.Remote.Serialization;
 using Roslyn.Test.Utilities;
 using Roslyn.VisualStudio.Next.UnitTests.Mocks;
 using Xunit;

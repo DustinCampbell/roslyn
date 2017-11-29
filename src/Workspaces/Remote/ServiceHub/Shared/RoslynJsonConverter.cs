@@ -2,7 +2,7 @@
 
 using System;
 using System.Collections.Immutable;
-using Microsoft.CodeAnalysis.Execution;
+using Microsoft.CodeAnalysis.Remote.Serialization;
 using Microsoft.CodeAnalysis.Text;
 using Newtonsoft.Json;
 using Roslyn.Utilities;

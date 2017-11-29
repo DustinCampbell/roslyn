@@ -1,9 +1,10 @@
-﻿using System.Threading;
+﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
+
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
-using Microsoft.CodeAnalysis.Execution;
-using Microsoft.CodeAnalysis.Serialization;
+using Microsoft.CodeAnalysis.Remote.Serialization;
 using Microsoft.CodeAnalysis.UnitTests;
 using Microsoft.VisualStudio.LanguageServices.Implementation.ProjectSystem;
 using Microsoft.VisualStudio.Shell.Interop;

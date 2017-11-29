@@ -5,7 +5,7 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Security.Cryptography;
 using System.Threading;
-using Microsoft.CodeAnalysis.Serialization;
+using Microsoft.CodeAnalysis.Remote.Serialization;
 using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis

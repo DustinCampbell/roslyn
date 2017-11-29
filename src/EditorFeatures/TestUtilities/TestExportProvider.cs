@@ -76,9 +76,9 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests
                 typeof(CodeAnalysis.VisualBasic.CodeGeneration.VisualBasicSyntaxGenerator),
                 typeof(CSharp.LanguageServices.CSharpContentTypeLanguageService),
                 typeof(VisualBasic.LanguageServices.VisualBasicContentTypeLanguageService),
-                typeof(CodeAnalysis.CSharp.Execution.CSharpOptionsSerializationService),
-                typeof(CodeAnalysis.VisualBasic.Execution.VisualBasicOptionsSerializationService),
-                typeof(CodeAnalysis.Execution.DesktopReferenceSerializationServiceFactory),
+                typeof(CodeAnalysis.CSharp.Remote.Serialization.CSharpOptionsSerializationService),
+                typeof(CodeAnalysis.VisualBasic.Remote.Serialization.VisualBasicOptionsSerializationService),
+                typeof(CodeAnalysis.Remote.Serialization.DesktopReferenceSerializationServiceFactory),
                 typeof(TestExportProvider)
             };
 

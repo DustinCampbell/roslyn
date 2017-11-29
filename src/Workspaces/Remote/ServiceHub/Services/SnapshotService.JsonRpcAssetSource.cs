@@ -8,7 +8,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Internal.Log;
-using Microsoft.CodeAnalysis.Serialization;
+using Microsoft.CodeAnalysis.Remote.Serialization;
 using Roslyn.Utilities;
 using RoslynLogger = Microsoft.CodeAnalysis.Internal.Log.Logger;
 

@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.Execution;
+using Microsoft.CodeAnalysis.Remote.Serialization;
 using Microsoft.VisualStudio.LanguageServices.Remote;
 using Roslyn.Utilities;
 using StreamJsonRpc;

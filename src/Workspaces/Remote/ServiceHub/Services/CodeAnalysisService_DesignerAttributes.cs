@@ -3,10 +3,9 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.DesignerAttributes;
-using Microsoft.CodeAnalysis.Execution;
 using Microsoft.CodeAnalysis.Internal.Log;
+using Microsoft.CodeAnalysis.Remote.Serialization;
 using Microsoft.CodeAnalysis.Shared.Extensions;
-using Roslyn.Utilities;
 using RoslynLogger = Microsoft.CodeAnalysis.Internal.Log.Logger;
 
 namespace Microsoft.CodeAnalysis.Remote
