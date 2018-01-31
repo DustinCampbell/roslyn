@@ -55,6 +55,45 @@ namespace Microsoft.CodeAnalysis.MSBuild
                 : ProjectFileInfo.CreateEmpty(this.Log);
         }
 
+        public async Task<IEnumerable<ProjectFileInfo>> GetProjectFileInfosAsync(CancellationToken cancellationToken)
+        {
+            var targetFrameworkValue = _loadedProject.GetPropertyValue("TargetFramework");
+            var targetFrameworksValue = _loadedProject.GetPropertyValue("TargetFrameworks");
+
+            // If the project has <TargetFrameworks>, but not a <TargetFramework>, we need to build it for each listed TFM.
+            if (!string.IsNullOrEmpty(targetFrameworksValue) && string.IsNullOrEmpty(targetFrameworkValue))
+            {
+                var hasTargetFrameworkProperty = _loadedProject.GetProperty("TargetFramework") != null;
+                var results = ImmutableList.CreateBuilder<ProjectFileInfo>();
+
+                var targetFrameworks = targetFrameworksValue.Split(';');
+
+                foreach (var targetFramework in targetFrameworks)
+                {
+                    _loadedProject.SetProperty("TargetFramework", targetFramework.Trim());
+                    _loadedProject.ReevaluateIfNecessary();
+
+                    var projectFileInfo = await GetProjectFileInfoAsync(cancellationToken).ConfigureAwait(false);
+                    results.Add(projectFileInfo);
+                }
+
+                // Afterward, remove the <TargetFramework> property if we added it.
+                if (!hasTargetFrameworkProperty)
+                {
+                    var targetFrameworkProperty = _loadedProject.GetProperty("TargetFramework");
+                    _loadedProject.RemoveProperty(targetFrameworkProperty);
+                    _loadedProject.ReevaluateIfNecessary();
+                }
+
+                return results.ToImmutable();
+            }
+            else
+            {
+                var projectFileInfo = await GetProjectFileInfoAsync(cancellationToken).ConfigureAwait(false);
+                return ImmutableList.Create(projectFileInfo);
+            }
+        }
+
         private async Task<MSB.Execution.ProjectInstance> BuildProjectAsync(CancellationToken cancellationToken)
         {
             // create a project instance to be executed by build engine.
@@ -201,8 +240,19 @@ namespace Microsoft.CodeAnalysis.MSBuild
         /// </summary>
         protected virtual ProjectFileReference CreateProjectFileReference(MSB.Execution.ProjectItemInstance reference)
         {
+            string fullPath;
+            try
+            {
+                fullPath = reference.GetMetadataValue("FullPath");
+            }
+            catch
+            {
+                fullPath = null;
+            }
+
             return new ProjectFileReference(
                 path: reference.EvaluatedInclude,
+                fullPath: fullPath,
                 aliases: ImmutableArray<string>.Empty);
         }
 

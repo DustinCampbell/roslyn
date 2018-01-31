@@ -1,5 +1,6 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,6 +29,11 @@ namespace Microsoft.CodeAnalysis.MSBuild
         /// Gets the project file info asynchronously.
         /// </summary>
         Task<ProjectFileInfo> GetProjectFileInfoAsync(CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Gets the project file info asynchronously.
+        /// </summary>
+        Task<IEnumerable<ProjectFileInfo>> GetProjectFileInfosAsync(CancellationToken cancellationToken);
 
         /// <summary>
         /// Get the kind of source found in the specified file. 

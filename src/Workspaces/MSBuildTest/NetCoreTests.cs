@@ -33,7 +33,7 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
             }
         }
 
-        [ConditionalFact(typeof(VisualStudioMSBuildInstalled), Skip = "Not passing yet")]
+        [ConditionalFact(typeof(VisualStudioMSBuildInstalled))]
         [Trait(Traits.Feature, Traits.Features.MSBuildWorkspace)]
         [Trait(Traits.Feature, Traits.Features.NetCore)]
         public async Task TestOpenProject_NetCoreMultiTFM()
@@ -46,33 +46,31 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
 
             using (var workspace = CreateMSBuildWorkspace())
             {
-                var project = await workspace.OpenProjectAsync(projectFilePath);
-                var document = project.Documents.First(d => d.Name == "Program.cs");
-                var semanticModel = await document.GetSemanticModelAsync();
-                var diagnostics = semanticModel.GetDiagnostics();
-                Assert.Empty(diagnostics);
+                var loader = new MSBuildProjectLoader(workspace);
+                var projectFiles = await loader.LoadProjectFileInfosAsync(new[] { projectFilePath });
+
+                Assert.Equal(3, projectFiles.Length);
             }
         }
 
-        [ConditionalFact(typeof(VisualStudioMSBuildInstalled), Skip = "Not passing yet")]
+        [ConditionalFact(typeof(VisualStudioMSBuildInstalled))]
         [Trait(Traits.Feature, Traits.Features.MSBuildWorkspace)]
         [Trait(Traits.Feature, Traits.Features.NetCore)]
         public async Task TestOpenProject_NetCoreMultiTFM_ProjectReference()
         {
             CreateFiles(GetNetCoreMultiTFMFiles_ProjectReference());
 
-            var output = DotNetHelper.Restore(@"Project\Project.csproj", workingDirectory: this.SolutionDirectory.Path);
-            output = DotNetHelper.Restore(@"Library\Library.csproj", workingDirectory: this.SolutionDirectory.Path);
+            DotNetHelper.Restore(@"Project\Project.csproj", workingDirectory: this.SolutionDirectory.Path);
+            DotNetHelper.Restore(@"Library\Library.csproj", workingDirectory: this.SolutionDirectory.Path);
 
             var projectFilePath = GetSolutionFileName(@"Project\Project.csproj");
 
             using (var workspace = CreateMSBuildWorkspace())
             {
-                var project = await workspace.OpenProjectAsync(projectFilePath);
-                var document = project.Documents.First(d => d.Name == "Program.cs");
-                var semanticModel = await document.GetSemanticModelAsync();
-                var diagnostics = semanticModel.GetDiagnostics();
-                Assert.Empty(diagnostics);
+                var loader = new MSBuildProjectLoader(workspace);
+                var projectFiles = await loader.LoadProjectFileInfosAsync(new[] { projectFilePath });
+
+                Assert.Equal(4, projectFiles.Length);
             }
         }
     }

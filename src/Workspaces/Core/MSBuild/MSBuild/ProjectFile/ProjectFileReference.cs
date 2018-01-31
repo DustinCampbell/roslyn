@@ -17,15 +17,21 @@ namespace Microsoft.CodeAnalysis.MSBuild
         public string Path { get; }
 
         /// <summary>
+        /// The absolute path to the referenced project's file.
+        /// </summary>
+        public string FullPath { get; }
+
+        /// <summary>
         /// The aliases assigned to this reference, if any.
         /// </summary>
         public ImmutableArray<string> Aliases { get; }
 
-        public ProjectFileReference(string path, ImmutableArray<string> aliases)
+        public ProjectFileReference(string path, string fullPath, ImmutableArray<string> aliases)
         {
             Debug.Assert(!aliases.IsDefault);
 
             this.Path = path;
+            this.FullPath = fullPath;
             this.Aliases = aliases;
         }
     }

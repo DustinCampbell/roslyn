@@ -44,9 +44,20 @@ namespace Microsoft.CodeAnalysis.CSharp
         protected override ProjectFileReference CreateProjectFileReference(MSB.Execution.ProjectItemInstance reference)
         {
             var filePath = reference.EvaluatedInclude;
+
+            string fullPath;
+            try
+            {
+                fullPath = reference.GetMetadataValue("FullPath");
+            }
+            catch
+            {
+                fullPath = null;
+            }
+
             var aliases = GetAliases(reference);
 
-            return new ProjectFileReference(filePath, aliases);
+            return new ProjectFileReference(filePath, fullPath, aliases);
         }
 
         protected override ProjectFileInfo CreateProjectFileInfo(MSB.Execution.ProjectInstance project)

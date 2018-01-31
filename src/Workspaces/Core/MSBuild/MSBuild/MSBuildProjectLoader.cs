@@ -185,6 +185,71 @@ namespace Microsoft.CodeAnalysis.MSBuild
             return absolutePath;
         }
 
+        internal async Task<ImmutableArray<ProjectFileInfo>> LoadProjectFileInfosAsync(
+            IEnumerable<string> projectFilePaths,
+            CancellationToken cancellationToken = default)
+        {
+            var results = ImmutableArray.CreateBuilder<ProjectFileInfo>();
+            var processedSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var queue = new Queue<string>(projectFilePaths);
+
+            var reportMode = this.SkipUnrecognizedProjects
+                ? ReportMode.Log
+                : ReportMode.Throw;
+
+            while (queue.Count > 0)
+            {
+                var projectFilePath = queue.Dequeue();
+
+                // Move on if we've already seen this path.
+                if (!processedSet.Add(projectFilePath))
+                {
+                    continue;
+                }
+
+                this.TryGetLoaderFromProjectPath(projectFilePath, reportMode, out var loader);
+
+                var projectFile = await loader.LoadProjectFileAsync(projectFilePath, _properties, cancellationToken).ConfigureAwait(false);
+
+                // If there were any failures during load, we won't be able to build the project. So, bail early with an empty project.
+                if (projectFile.Log.HasFailure)
+                {
+                    ReportDiagnosticLog(projectFile.Log);
+
+                    results.Add(ProjectFileInfo.CreateEmpty(projectFile.Log));
+                    continue;
+                }
+
+                var projectFileInfos = await projectFile.GetProjectFileInfosAsync(cancellationToken).ConfigureAwait(false);
+
+                foreach (var projectFileInfo in projectFileInfos)
+                {
+                    // If any diagnostics were logged during build, we'll carry on and try to produce a meaningful project.
+                    if (!projectFileInfo.Log.IsEmpty)
+                    {
+                        ReportDiagnosticLog(projectFileInfo.Log);
+                    }
+
+                    results.Add(projectFileInfo);
+
+                    // Enqueue project references
+                    foreach (var projectReference in projectFileInfo.ProjectReferences)
+                    {
+                        var fullPath = projectReference.FullPath;
+
+                        // TODO: Report failure if project reference doesn't exist on disk.
+
+                        if (!processedSet.Contains(fullPath))
+                        {
+                            queue.Enqueue(fullPath);
+                        }
+                    }
+                }
+            }
+
+            return results.ToImmutable();
+        }
+
         /// <summary>
         /// Loads the <see cref="ProjectInfo"/> from the specified project file and all referenced projects.
         /// The first <see cref="ProjectInfo"/> in the result corresponds to the specified project file.
