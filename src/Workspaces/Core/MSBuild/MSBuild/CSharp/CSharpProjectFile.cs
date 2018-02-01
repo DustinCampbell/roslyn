@@ -13,8 +13,8 @@ namespace Microsoft.CodeAnalysis.CSharp
 {
     internal class CSharpProjectFile : ProjectFile
     {
-        public CSharpProjectFile(CSharpProjectFileLoader loader, MSB.Evaluation.Project project, DiagnosticLog log)
-            : base(loader, project, log)
+        public CSharpProjectFile(CSharpProjectFileLoader loader, MSB.Evaluation.Project project, string filePath, DiagnosticLog log)
+            : base(loader, project, filePath, log)
         {
         }
 
@@ -67,11 +67,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             commandLineArgs = FixPlatform(commandLineArgs);
 
-            var outputFilePath = project.ReadPropertyString("TargetPath");
-            if (!string.IsNullOrWhiteSpace(outputFilePath))
-            {
-                outputFilePath = this.GetAbsolutePath(outputFilePath);
-            }
+            var outputFilePath = GetOutputFilePath(project);
 
             var docs = this.GetDocumentsFromModel(project)
                 .Where(s => !IsTemporaryGeneratedFile(s.ItemSpec))

@@ -14,8 +14,8 @@ namespace Microsoft.CodeAnalysis.VisualBasic
 {
     internal class VisualBasicProjectFile : ProjectFile
     {
-        public VisualBasicProjectFile(VisualBasicProjectFileLoader loader, MSB.Evaluation.Project loadedProject, DiagnosticLog log)
-            : base(loader, loadedProject, log)
+        public VisualBasicProjectFile(VisualBasicProjectFileLoader loader, MSB.Evaluation.Project loadedProject, string filePath, DiagnosticLog log)
+            : base(loader, loadedProject, filePath, log)
         {
         }
 
@@ -57,15 +57,7 @@ namespace Microsoft.CodeAnalysis.VisualBasic
 
             commandLineArgs = FixPlatform(commandLineArgs);
 
-            var metadataReferences = this.GetMetadataReferencesFromModel(project)
-                .ToImmutableArray();
-            commandLineArgs = FixReferences(commandLineArgs, metadataReferences);
-
-            var outputFilePath = project.ReadPropertyString("TargetPath");
-            if (!string.IsNullOrWhiteSpace(outputFilePath))
-            {
-                outputFilePath = this.GetAbsolutePath(outputFilePath);
-            }
+            var outputFilePath = GetOutputFilePath(project);
 
             var docs = this.GetDocumentsFromModel(project)
                 .Where(s => !IsTemporaryGeneratedFile(s.ItemSpec))
@@ -121,49 +113,6 @@ namespace Microsoft.CodeAnalysis.VisualBasic
             }
 
             return commandLineArgs;
-        }
-
-        private ImmutableArray<string> FixReferences(ImmutableArray<string> commandLineArgs, ImmutableArray<MSB.Framework.ITaskItem> metadataReferences)
-        {
-            // Visual Basic has a single '/reference' arg with a comma-separated list of references.
-            var referenceArgIndex = -1;
-
-            for (var i = 0; i < commandLineArgs.Length; i++)
-            {
-                var arg = commandLineArgs[i];
-
-                if (arg.StartsWith("/reference:", StringComparison.OrdinalIgnoreCase))
-                {
-                    referenceArgIndex = i;
-                    break;
-                }
-            }
-
-            if (referenceArgIndex < 0)
-            {
-                return commandLineArgs;
-            }
-
-            var references = new List<string>();
-            foreach (var metadataReference in metadataReferences)
-            {
-                var filePath = metadataReference.GetMetadata("FullPath");
-                if (!File.Exists(filePath))
-                {
-                    var referenceSourceTarget = metadataReference.GetMetadata("ReferenceSourceTarget");
-                    if (referenceSourceTarget == "ProjectReference")
-                    {
-                        // We'll be adding this as a project reference anyway, so skip this one.
-                        continue;
-                    }
-                }
-
-                references.Add("\"" + filePath + "\"");
-            }
-
-            var newReferenceArg = "/reference:" + string.Join(",", references);
-
-            return commandLineArgs.SetItem(referenceArgIndex, newReferenceArg);
         }
 
         private ImmutableArray<string> ReadCommandLineArguments(MSB.Execution.ProjectInstance project)

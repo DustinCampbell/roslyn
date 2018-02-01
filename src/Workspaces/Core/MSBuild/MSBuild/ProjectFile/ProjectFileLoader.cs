@@ -43,11 +43,13 @@ namespace Microsoft.CodeAnalysis.MSBuild
         public struct LoadedProjectInfo
         {
             public readonly MSB.Evaluation.Project Project;
+            public readonly string FilePath;
             public readonly DiagnosticLog Log;
 
-            public LoadedProjectInfo(MSB.Evaluation.Project project, DiagnosticLog log)
+            public LoadedProjectInfo(MSB.Evaluation.Project project, string filePath, DiagnosticLog log)
             {
                 this.Project = project;
+                this.FilePath = filePath;
                 this.Log = log;
             }
         }
@@ -80,12 +82,12 @@ namespace Microsoft.CodeAnalysis.MSBuild
                 xml.FullPath = path;
 
                 return new LoadedProjectInfo(
-                    new MSB.Evaluation.Project(xml, globalProperties: null, toolsVersion: null, projectCollection: collection), log);
+                    new MSB.Evaluation.Project(xml, globalProperties: null, toolsVersion: null, projectCollection: collection), path, log);
             }
             catch (Exception e)
             {
                 log.Add(e, path);
-                return new LoadedProjectInfo(project: null, log);
+                return new LoadedProjectInfo(project: null, path, log);
             }
         }
 

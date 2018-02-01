@@ -134,14 +134,14 @@ namespace Microsoft.CodeAnalysis.MSBuild
             }
 
             VersionStamp version = default;
+            var reportMode = this.SkipUnrecognizedProjects
+                ? ReportMode.Log
+                : ReportMode.Throw;
 
+            // Retrieve all project paths from the solution file.
             var solutionFile = MSB.Construction.SolutionFile.Parse(absoluteSolutionPath);
-            var reportMode = this.SkipUnrecognizedProjects ? ReportMode.Log : ReportMode.Throw;
+            var projectFilePaths = new List<string>();
 
-            // a list to accumulate all the loaded projects
-            var loadedProjects = new LoadState(null);
-
-            // load all the projects
             foreach (var project in solutionFile.ProjectsInOrder)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -151,18 +151,17 @@ namespace Microsoft.CodeAnalysis.MSBuild
                     var projectAbsolutePath = TryGetAbsolutePath(project.AbsolutePath, reportMode);
                     if (projectAbsolutePath != null)
                     {
-                        if (TryGetLoaderFromProjectPath(projectAbsolutePath, reportMode, out var loader))
-                        {
-                            // projects get added to 'loadedProjects' as side-effect
-                            // never prefer metadata when loading solution, all projects get loaded if they can.
-                            var tmp = await GetOrLoadProjectAsync(projectAbsolutePath, loader, preferMetadata: false, loadedProjects: loadedProjects, cancellationToken: cancellationToken).ConfigureAwait(false);
-                        }
+                        projectFilePaths.Add(projectAbsolutePath);
                     }
                 }
             }
 
+            // TODO: Never prefer metadata when loading solutions
+
+            var projects = await LoadProjectInfosAsync(projectFilePaths, reportMode, projectOutputPathToProjectIdMap: null, cancellationToken).ConfigureAwait(false);
+
             // construct workspace from loaded project infos
-            return SolutionInfo.Create(SolutionId.CreateNewId(debugName: absoluteSolutionPath), version, absoluteSolutionPath, loadedProjects.Projects);
+            return SolutionInfo.Create(SolutionId.CreateNewId(debugName: absoluteSolutionPath), version, absoluteSolutionPath, projects);
         }
 
         internal string GetAbsoluteSolutionPath(string path, string baseDirectory)
@@ -189,16 +188,20 @@ namespace Microsoft.CodeAnalysis.MSBuild
         private class ProjectLoadState
         {
             private readonly List<(ProjectId, ProjectFileInfo)> _projectFileInfoList;
+            private readonly Dictionary<string, (ProjectId, ProjectFileInfo)> _projectFileToProjectMap;
             private readonly Dictionary<string, ProjectId> _projectOutputPathToProjectIdMap;
             private readonly Dictionary<ProjectId, ProjectFileInfo> _projectIdToProjectFileInfoMap;
+            private readonly Dictionary<ProjectId, ProjectInfo> _projectIdToProjectInfoMap;
 
             public ProjectLoadState(
                 ImmutableArray<ProjectFileInfo> projectFileInfos,
                 IDictionary<string, ProjectId> projectOutputPathToProjectIdMap)
             {
                 _projectFileInfoList = new List<(ProjectId, ProjectFileInfo)>();
+                _projectFileToProjectMap = new Dictionary<string, (ProjectId, ProjectFileInfo)>();
                 _projectOutputPathToProjectIdMap = new Dictionary<string, ProjectId>(StringComparer.OrdinalIgnoreCase);
                 _projectIdToProjectFileInfoMap = new Dictionary<ProjectId, ProjectFileInfo>();
+                _projectIdToProjectInfoMap = new Dictionary<ProjectId, ProjectInfo>();
 
                 if (projectOutputPathToProjectIdMap != null)
                 {
@@ -207,7 +210,9 @@ namespace Microsoft.CodeAnalysis.MSBuild
 
                 foreach (var projectFileInfo in projectFileInfos)
                 {
-                    var projectId = GetOrCreateProjectId(projectFileInfo.OutputFilePath);
+                    var projectId = projectFileInfo.OutputFilePath != null
+                        ? GetOrCreateProjectId(projectFileInfo.OutputFilePath)
+                        : ProjectId.CreateNewId(debugName: $"No output path: {projectFileInfo.FilePath}");
 
                     _projectFileInfoList.Add((projectId, projectFileInfo));
                     _projectIdToProjectFileInfoMap.Add(projectId, projectFileInfo);
@@ -224,6 +229,8 @@ namespace Microsoft.CodeAnalysis.MSBuild
 
             public ProjectId GetOrCreateProjectId(string outputFilePath)
             {
+                Debug.Assert(outputFilePath != null);
+
                 if (!_projectOutputPathToProjectIdMap.TryGetValue(outputFilePath, out var id))
                 {
                     id = ProjectId.CreateNewId(debugName: outputFilePath);
@@ -232,16 +239,45 @@ namespace Microsoft.CodeAnalysis.MSBuild
 
                 return id;
             }
+
+            public void Add(ProjectInfo projectInfo)
+            {
+                _projectIdToProjectInfoMap.Add(projectInfo.Id, projectInfo);
+            }
+
+            public bool ProjectReferenceExists(ProjectId from, ProjectId to)
+            {
+                if (!_projectIdToProjectInfoMap.TryGetValue(from, out var project))
+                {
+                    return false;
+                }
+
+                return project.ProjectReferences.Any(projectRef => projectRef.ProjectId == to);
+            }
         }
 
-        internal async Task<ImmutableArray<ProjectInfo>> LoadProjectInfosAsync(
+        internal Task<ImmutableArray<ProjectInfo>> LoadProjectInfosAsync(
             IEnumerable<string> projectFilePaths,
             IDictionary<string, ProjectId> projectOutputPathToProjectIdMap = null,
             CancellationToken cancellationToken = default)
         {
+            var reportMode = this.SkipUnrecognizedProjects
+                ? ReportMode.Log
+                : ReportMode.Throw;
+
+            return LoadProjectInfosAsync(projectFilePaths, reportMode, projectOutputPathToProjectIdMap, cancellationToken);
+        }
+
+
+        private async Task<ImmutableArray<ProjectInfo>> LoadProjectInfosAsync(
+            IEnumerable<string> projectFilePaths,
+            ReportMode reportMode,
+            IDictionary<string, ProjectId> projectOutputPathToProjectIdMap,
+            CancellationToken cancellationToken)
+        {
             var results = ImmutableArray.CreateBuilder<ProjectInfo>();
 
-            var projectFileInfos = await LoadProjectFileInfosAsync(projectFilePaths, cancellationToken).ConfigureAwait(false);
+            var projectFileInfos = await LoadProjectFileInfosAsync(projectFilePaths, reportMode, cancellationToken).ConfigureAwait(false);
 
             var loadState = new ProjectLoadState(projectFileInfos, projectOutputPathToProjectIdMap);
 
@@ -266,7 +302,7 @@ namespace Microsoft.CodeAnalysis.MSBuild
             var documents = CreateDocumentInfos(docFileInfos, projectId, commandLineArgs.Encoding);
             var additionalDocuments = CreateDocumentInfos(additionalDocFileInfos, projectId, commandLineArgs.Encoding);
 
-            var (metadataReferences, projectReferences) = ResolveReferences(projectFileInfo, commandLineArgs, loadState);
+            var (metadataReferences, projectReferences) = ResolveReferences(projectFileInfo, projectId, commandLineArgs, loadState);
             var analyzerReferences = ResolveAnalyzerReferences(commandLineArgs);
 
             // if the project file loader couldn't figure out an assembly name, make one using the project's file path.
@@ -293,7 +329,7 @@ namespace Microsoft.CodeAnalysis.MSBuild
                 .WithStrongNameProvider(new DesktopStrongNameProvider(commandLineArgs.KeyFileSearchPaths))
                 .WithAssemblyIdentityComparer(DesktopAssemblyIdentityComparer.Default);
 
-            return ProjectInfo.Create(
+            var projectInfo = ProjectInfo.Create(
                 projectId,
                 version: GetProjectVersion(projectFileInfo.FilePath),
                 name: Path.GetFileNameWithoutExtension(projectFileInfo.FilePath),
@@ -310,10 +346,14 @@ namespace Microsoft.CodeAnalysis.MSBuild
                 additionalDocuments,
                 isSubmission: false,
                 hostObjectType: null);
+
+            loadState.Add(projectInfo);
+
+            return projectInfo;
         }
 
         private (IEnumerable<MetadataReference>, IEnumerable<ProjectReference>) ResolveReferences(
-            ProjectFileInfo projectFileInfo, CommandLineArguments commandLineArgs, ProjectLoadState loadState)
+            ProjectFileInfo projectFileInfo, ProjectId projectId, CommandLineArguments commandLineArgs, ProjectLoadState loadState)
         {
             var metadataService = _workspace.Services.GetService<IMetadataService>();
             var resolver = new WorkspaceMetadataFileReferenceResolver(
@@ -325,7 +365,8 @@ namespace Microsoft.CodeAnalysis.MSBuild
             var projectReferences = new List<ProjectReference>();
             foreach (var (path, metadataReference) in metadataReferenceMap.ToArray())
             {
-                if (!loadState.TryGetProjectId(path, out var projectRefId))
+                if (!loadState.TryGetProjectId(path, out var projectRefId) ||
+                    loadState.ProjectReferenceExists(from: projectRefId, to: projectId))
                 {
                     if (metadataReference is UnresolvedMetadataReference unresolvedMetadataReference)
                     {
@@ -338,7 +379,6 @@ namespace Microsoft.CodeAnalysis.MSBuild
 
                 // TODO: Handle scenario where user wants to reference metadata for project references.
 
-                // We've found the output path of a project reference.
                 // Remove the metadata reference since we'll be creating a project reference.
                 metadataReferenceMap = metadataReferenceMap.Remove(path);
 
@@ -391,15 +431,12 @@ namespace Microsoft.CodeAnalysis.MSBuild
 
         private async Task<ImmutableArray<ProjectFileInfo>> LoadProjectFileInfosAsync(
             IEnumerable<string> projectFilePaths,
+            ReportMode reportMode,
             CancellationToken cancellationToken = default)
         {
             var results = ImmutableArray.CreateBuilder<ProjectFileInfo>();
             var processedSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var queue = new Queue<string>(projectFilePaths);
-
-            var reportMode = this.SkipUnrecognizedProjects
-                ? ReportMode.Log
-                : ReportMode.Throw;
 
             while (queue.Count > 0)
             {
@@ -411,7 +448,11 @@ namespace Microsoft.CodeAnalysis.MSBuild
                     continue;
                 }
 
-                this.TryGetLoaderFromProjectPath(projectFilePath, reportMode, out var loader);
+                // Move on if we can't get a project loader.
+                if (!this.TryGetLoaderFromProjectPath(projectFilePath, reportMode, out var loader))
+                {
+                    continue;
+                }
 
                 var projectFile = await loader.LoadProjectFileAsync(projectFilePath, _properties, cancellationToken).ConfigureAwait(false);
 

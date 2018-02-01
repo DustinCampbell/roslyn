@@ -21,13 +21,14 @@ namespace Microsoft.CodeAnalysis.MSBuild
         private readonly MSB.Evaluation.Project _loadedProject;
 
         public DiagnosticLog Log { get; }
-        public virtual string FilePath => _loadedProject.FullPath;
+        public virtual string FilePath { get; }
         public string Language => _loader.Language;
 
-        protected ProjectFile(ProjectFileLoader loader, MSB.Evaluation.Project loadedProject, DiagnosticLog log)
+        protected ProjectFile(ProjectFileLoader loader, MSB.Evaluation.Project loadedProject, string filePath, DiagnosticLog log)
         {
             _loader = loader;
             _loadedProject = loadedProject;
+            FilePath = filePath;
             Log = log;
         }
 
@@ -689,6 +690,34 @@ namespace Microsoft.CodeAnalysis.MSBuild
                 kind = OutputKind.DynamicallyLinkedLibrary;
                 return false;
             }
+        }
+
+        protected string GetOutputFilePath(MSB.Execution.ProjectInstance project)
+        {
+            var outputFilePath = project.ReadPropertyString("TargetPath");
+            if (string.IsNullOrWhiteSpace(outputFilePath))
+            {
+                // If "TargetPath" isn't present, there must be some targets missing.
+                // In this case, try "OutputPath" + "AssemblyName"
+                var outputPath = project.ReadPropertyString("OutputPath");
+                if (!string.IsNullOrWhiteSpace(outputPath))
+                {
+                    outputFilePath = outputPath;
+
+                    var assemblyName = project.ReadPropertyString("AssemblyName");
+                    if (!string.IsNullOrWhiteSpace(assemblyName))
+                    {
+                        outputFilePath = Path.Combine(outputFilePath, assemblyName);
+                    }
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(outputFilePath))
+            {
+                outputFilePath = this.GetAbsolutePath(outputFilePath);
+            }
+
+            return outputFilePath;
         }
     }
 }

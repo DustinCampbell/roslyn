@@ -17,7 +17,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         protected override ProjectFile CreateProjectFile(LoadedProjectInfo info)
         {
-            return new CSharpProjectFile(this, info.Project, info.Log);
+            return new CSharpProjectFile(this, info.Project, info.FilePath, info.Log);
         }
     }
 }
