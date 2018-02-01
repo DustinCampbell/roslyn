@@ -22,6 +22,7 @@ namespace Microsoft.CodeAnalysis.MSBuild
 
         public DiagnosticLog Log { get; }
         public virtual string FilePath => _loadedProject.FullPath;
+        public string Language => _loader.Language;
 
         protected ProjectFile(ProjectFileLoader loader, MSB.Evaluation.Project loadedProject, DiagnosticLog log)
         {
@@ -52,7 +53,7 @@ namespace Microsoft.CodeAnalysis.MSBuild
 
             return project != null
                 ? CreateProjectFileInfo(project)
-                : ProjectFileInfo.CreateEmpty(this.Log);
+                : ProjectFileInfo.CreateEmpty(this.FilePath, this.Language, this.Log);
         }
 
         public async Task<IEnumerable<ProjectFileInfo>> GetProjectFileInfosAsync(CancellationToken cancellationToken)
@@ -224,7 +225,9 @@ namespace Microsoft.CodeAnalysis.MSBuild
             var logicalPath = GetDocumentLogicalPath(item, projectDirectory);
             var isLinked = IsDocumentLinked(item);
             var isGenerated = IsDocumentGenerated(item);
-            return new DocumentFileInfo(filePath, logicalPath, isLinked, isGenerated);
+            var sourceCodeKind = GetSourceCodeKind(filePath);
+
+            return new DocumentFileInfo(filePath, logicalPath, isLinked, isGenerated, sourceCodeKind);
         }
 
         protected IEnumerable<ProjectFileReference> GetProjectReferences(MSB.Execution.ProjectInstance executedProject)
@@ -235,25 +238,56 @@ namespace Microsoft.CodeAnalysis.MSBuild
                 .Select(CreateProjectFileReference);
         }
 
-        /// <summary>
-        /// Create a <see cref="ProjectFileReference"/> from a ProjectReference node in the MSBuild file.
-        /// </summary>
-        protected virtual ProjectFileReference CreateProjectFileReference(MSB.Execution.ProjectItemInstance reference)
+        protected bool TryGetMetadataValue(MSB.Execution.ProjectItemInstance projectItemInstance, string name, out string value)
         {
-            string fullPath;
             try
             {
-                fullPath = reference.GetMetadataValue("FullPath");
+                value = projectItemInstance.GetMetadataValue(name);
+                return true;
             }
             catch
             {
-                fullPath = null;
+                value = null;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Retrieves the full path of a ProjectReference item in the MSBuild file from the item's "FullPath" metadata.
+        /// If there is a problem accessing the metadata, the absolute path to item's evaluted include will be calculated.
+        /// </summary>
+        protected bool TryGetProjectReferencePath(MSB.Execution.ProjectItemInstance reference, out string path)
+        {
+            // First, try to retrieve "FullPath" metadata from the item.
+            if (TryGetMetadataValue(reference, "FullPath", out var metadataValue))
+            {
+                path = metadataValue;
+                return true;
             }
 
-            return new ProjectFileReference(
-                path: reference.EvaluatedInclude,
-                fullPath: fullPath,
-                aliases: ImmutableArray<string>.Empty);
+            // If that fails, try to compute the absolute path.
+            if (TryGetAbsolutePath(reference.EvaluatedInclude, out var absolutePath))
+            {
+                path = absolutePath;
+                return true;
+            }
+
+            // If that fails, the path is malformed in some way or inaccessible.
+            path = null;
+            return false;
+        }
+
+        /// <summary>
+        /// Create a <see cref="ProjectFileReference"/> from a ProjectReference item in the MSBuild file.
+        /// </summary>
+        protected virtual ProjectFileReference CreateProjectFileReference(MSB.Execution.ProjectItemInstance reference)
+        {
+            if (TryGetProjectReferencePath(reference, out var path))
+            {
+                return new ProjectFileReference(path);
+            }
+
+            return new ProjectFileReference(reference.EvaluatedInclude, hasBadPath: true);
         }
 
         protected abstract IEnumerable<MSB.Framework.ITaskItem> GetCommandLineArgsFromModel(MSB.Execution.ProjectInstance executedProject);
@@ -319,7 +353,25 @@ namespace Microsoft.CodeAnalysis.MSBuild
         protected string GetAbsolutePath(string path)
         {
             // TODO (tomat): should we report an error when drive-relative path (e.g. "C:goo.cs") is encountered?
-            return Path.GetFullPath(FileUtilities.ResolveRelativePath(path, _loadedProject.DirectoryPath) ?? path);
+            var resolvedPath = FileUtilities.ResolveRelativePath(path, _loadedProject.DirectoryPath);
+            return Path.GetFullPath(resolvedPath ?? path);
+        }
+
+        protected bool TryGetAbsolutePath(string path, out string absolutePath)
+        {
+            // TODO (tomat): should we report an error when drive-relative path (e.g. "C:goo.cs") is encountered?
+            var resolvedPath = FileUtilities.ResolveRelativePath(path, _loadedProject.DirectoryPath);
+
+            try
+            {
+                absolutePath = Path.GetFullPath(resolvedPath);
+                return true;
+            }
+            catch
+            {
+                absolutePath = null;
+                return false;
+            }
         }
 
         protected string GetDocumentFilePath(MSB.Framework.ITaskItem documentItem)

@@ -30,12 +30,15 @@ namespace Microsoft.CodeAnalysis.MSBuild
         /// </summary>
         public bool IsGenerated { get; }
 
-        public DocumentFileInfo(string filePath, string logicalPath, bool isLinked, bool isGenerated)
+        public SourceCodeKind SourceCodeKind { get; }
+
+        public DocumentFileInfo(string filePath, string logicalPath, bool isLinked, bool isGenerated, SourceCodeKind sourceCodeKind)
         {
             this.FilePath = filePath;
             this.LogicalPath = logicalPath;
             this.IsLinked = isLinked;
             this.IsGenerated = isGenerated;
+            this.SourceCodeKind = sourceCodeKind;
         }
     }
 }

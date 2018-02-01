@@ -4,8 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.MSBuild;
 using Microsoft.CodeAnalysis.MSBuild.Logging;
 using Roslyn.Utilities;
@@ -43,21 +41,14 @@ namespace Microsoft.CodeAnalysis.CSharp
 
         protected override ProjectFileReference CreateProjectFileReference(MSB.Execution.ProjectItemInstance reference)
         {
-            var filePath = reference.EvaluatedInclude;
-
-            string fullPath;
-            try
-            {
-                fullPath = reference.GetMetadataValue("FullPath");
-            }
-            catch
-            {
-                fullPath = null;
-            }
-
             var aliases = GetAliases(reference);
 
-            return new ProjectFileReference(filePath, fullPath, aliases);
+            if (TryGetProjectReferencePath(reference, out var path))
+            {
+                return new ProjectFileReference(path, aliases);
+            }
+
+            return new ProjectFileReference(reference.EvaluatedInclude, aliases, hasBadPath: true);
         }
 
         protected override ProjectFileInfo CreateProjectFileInfo(MSB.Execution.ProjectInstance project)
@@ -92,6 +83,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                 .ToImmutableArray();
 
             return new ProjectFileInfo(
+                this.FilePath,
+                this.Language,
                 outputFilePath,
                 commandLineArgs,
                 docs,

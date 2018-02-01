@@ -481,7 +481,7 @@ namespace Microsoft.CodeAnalysis.MSBuild
             var project = this.CurrentSolution.GetProject(projectReference.ProjectId);
             if (project != null)
             {
-                _applyChangesProjectFile.AddProjectReference(project.Name, new ProjectFileReference(path: project.FilePath, fullPath: project.FilePath, projectReference.Aliases));
+                _applyChangesProjectFile.AddProjectReference(project.Name, new ProjectFileReference(project.FilePath, projectReference.Aliases));
             }
 
             this.OnProjectReferenceAdded(projectId, projectReference);

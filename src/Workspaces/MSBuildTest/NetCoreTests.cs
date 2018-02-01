@@ -47,9 +47,9 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
             using (var workspace = CreateMSBuildWorkspace())
             {
                 var loader = new MSBuildProjectLoader(workspace);
-                var projectFiles = await loader.LoadProjectFileInfosAsync(new[] { projectFilePath });
+                var projectInfos = await loader.LoadProjectInfosAsync(new[] { projectFilePath });
 
-                Assert.Equal(3, projectFiles.Length);
+                Assert.Equal(3, projectInfos.Length);
             }
         }
 
@@ -68,9 +68,9 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
             using (var workspace = CreateMSBuildWorkspace())
             {
                 var loader = new MSBuildProjectLoader(workspace);
-                var projectFiles = await loader.LoadProjectFileInfosAsync(new[] { projectFilePath });
+                var projectInfos = await loader.LoadProjectInfosAsync(new[] { projectFilePath });
 
-                Assert.Equal(4, projectFiles.Length);
+                Assert.Equal(4, projectInfos.Length);
             }
         }
     }

@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Diagnostics;
@@ -185,7 +186,210 @@ namespace Microsoft.CodeAnalysis.MSBuild
             return absolutePath;
         }
 
-        internal async Task<ImmutableArray<ProjectFileInfo>> LoadProjectFileInfosAsync(
+        private class ProjectLoadState
+        {
+            private readonly List<(ProjectId, ProjectFileInfo)> _projectFileInfoList;
+            private readonly Dictionary<string, ProjectId> _projectOutputPathToProjectIdMap;
+            private readonly Dictionary<ProjectId, ProjectFileInfo> _projectIdToProjectFileInfoMap;
+
+            public ProjectLoadState(
+                ImmutableArray<ProjectFileInfo> projectFileInfos,
+                IDictionary<string, ProjectId> projectOutputPathToProjectIdMap)
+            {
+                _projectFileInfoList = new List<(ProjectId, ProjectFileInfo)>();
+                _projectOutputPathToProjectIdMap = new Dictionary<string, ProjectId>(StringComparer.OrdinalIgnoreCase);
+                _projectIdToProjectFileInfoMap = new Dictionary<ProjectId, ProjectFileInfo>();
+
+                if (projectOutputPathToProjectIdMap != null)
+                {
+                    _projectOutputPathToProjectIdMap.AddRange(projectOutputPathToProjectIdMap);
+                }
+
+                foreach (var projectFileInfo in projectFileInfos)
+                {
+                    var projectId = GetOrCreateProjectId(projectFileInfo.OutputFilePath);
+
+                    _projectFileInfoList.Add((projectId, projectFileInfo));
+                    _projectIdToProjectFileInfoMap.Add(projectId, projectFileInfo);
+                }
+            }
+
+            public IEnumerable<(ProjectId, ProjectFileInfo)> ProjectFileInfos => _projectFileInfoList;
+
+            public bool TryGetProjectId(string outputFilePath, out ProjectId projectId)
+                => _projectOutputPathToProjectIdMap.TryGetValue(outputFilePath, out projectId);
+
+            public ProjectFileInfo GetProjectFileInfo(ProjectId projectId)
+                => _projectIdToProjectFileInfoMap[projectId];
+
+            public ProjectId GetOrCreateProjectId(string outputFilePath)
+            {
+                if (!_projectOutputPathToProjectIdMap.TryGetValue(outputFilePath, out var id))
+                {
+                    id = ProjectId.CreateNewId(debugName: outputFilePath);
+                    _projectOutputPathToProjectIdMap.Add(outputFilePath, id);
+                }
+
+                return id;
+            }
+        }
+
+        internal async Task<ImmutableArray<ProjectInfo>> LoadProjectInfosAsync(
+            IEnumerable<string> projectFilePaths,
+            IDictionary<string, ProjectId> projectOutputPathToProjectIdMap = null,
+            CancellationToken cancellationToken = default)
+        {
+            var results = ImmutableArray.CreateBuilder<ProjectInfo>();
+
+            var projectFileInfos = await LoadProjectFileInfosAsync(projectFilePaths, cancellationToken).ConfigureAwait(false);
+
+            var loadState = new ProjectLoadState(projectFileInfos, projectOutputPathToProjectIdMap);
+
+            foreach (var (projectId, projectFileInfo) in loadState.ProjectFileInfos)
+            {
+                var projectInfo = CreateProjectInfo(projectFileInfo, projectId, loadState);
+
+                results.Add(projectInfo);
+            }
+
+            return results.ToImmutable();
+        }
+
+        private ProjectInfo CreateProjectInfo(ProjectFileInfo projectFileInfo, ProjectId projectId, ProjectLoadState loadState)
+        {
+            var commandLineArgs = ParseCommandLineArguments(projectFileInfo);
+
+            var docFileInfos = projectFileInfo.Documents.ToImmutableArrayOrEmpty();
+            var additionalDocFileInfos = projectFileInfo.AdditionalDocuments.ToImmutableArrayOrEmpty();
+            ReportWarningForDuplicateDocuments(docFileInfos.AddRange(additionalDocFileInfos), projectFileInfo.FilePath, projectId);
+
+            var documents = CreateDocumentInfos(docFileInfos, projectId, commandLineArgs.Encoding);
+            var additionalDocuments = CreateDocumentInfos(additionalDocFileInfos, projectId, commandLineArgs.Encoding);
+
+            var (metadataReferences, projectReferences) = ResolveReferences(projectFileInfo, commandLineArgs, loadState);
+            var analyzerReferences = ResolveAnalyzerReferences(commandLineArgs);
+
+            // if the project file loader couldn't figure out an assembly name, make one using the project's file path.
+            var assemblyName = commandLineArgs.CompilationName;
+            if (string.IsNullOrWhiteSpace(assemblyName))
+            {
+                assemblyName = GetAssemblyNameFromProjectPath(projectFileInfo.FilePath);
+            }
+
+            // make sure that doc-comments at least get parsed.
+            var parseOptions = commandLineArgs.ParseOptions;
+            if (parseOptions.DocumentationMode == DocumentationMode.None)
+            {
+                parseOptions = parseOptions.WithDocumentationMode(DocumentationMode.Parse);
+            }
+
+            var metadataService = _workspace.Services.GetService<IMetadataService>();
+            // add all the extra options that are really behavior overrides
+            var compilationOptions = commandLineArgs.CompilationOptions
+                .WithXmlReferenceResolver(new XmlFileResolver(projectFileInfo.Directory))
+                .WithSourceReferenceResolver(new SourceFileResolver(ImmutableArray<string>.Empty, projectFileInfo.Directory))
+                // TODO: https://github.com/dotnet/roslyn/issues/4967
+                .WithMetadataReferenceResolver(new WorkspaceMetadataFileReferenceResolver(metadataService, new RelativePathResolver(ImmutableArray<string>.Empty, projectFileInfo.Directory)))
+                .WithStrongNameProvider(new DesktopStrongNameProvider(commandLineArgs.KeyFileSearchPaths))
+                .WithAssemblyIdentityComparer(DesktopAssemblyIdentityComparer.Default);
+
+            return ProjectInfo.Create(
+                projectId,
+                version: GetProjectVersion(projectFileInfo.FilePath),
+                name: Path.GetFileNameWithoutExtension(projectFileInfo.FilePath),
+                assemblyName,
+                projectFileInfo.Language,
+                projectFileInfo.FilePath,
+                projectFileInfo.OutputFilePath,
+                compilationOptions,
+                parseOptions,
+                documents,
+                projectReferences,
+                metadataReferences,
+                analyzerReferences,
+                additionalDocuments,
+                isSubmission: false,
+                hostObjectType: null);
+        }
+
+        private (IEnumerable<MetadataReference>, IEnumerable<ProjectReference>) ResolveReferences(
+            ProjectFileInfo projectFileInfo, CommandLineArguments commandLineArgs, ProjectLoadState loadState)
+        {
+            var metadataService = _workspace.Services.GetService<IMetadataService>();
+            var resolver = new WorkspaceMetadataFileReferenceResolver(
+                metadataService,
+                new RelativePathResolver(commandLineArgs.ReferencePaths, commandLineArgs.BaseDirectory));
+            var metadataReferences = commandLineArgs.ResolveMetadataReferences(resolver);
+            var metadataReferenceMap = CreateMetadataReferenceMap(metadataReferences);
+
+            var projectReferences = new List<ProjectReference>();
+            foreach (var (path, metadataReference) in metadataReferenceMap.ToArray())
+            {
+                if (!loadState.TryGetProjectId(path, out var projectRefId))
+                {
+                    if (metadataReference is UnresolvedMetadataReference unresolvedMetadataReference)
+                    {
+                        // TODO: Report warning for unresolved metadata references
+                        metadataReferenceMap = metadataReferenceMap.Remove(path);
+                    }
+
+                    continue;
+                }
+
+                // TODO: Handle scenario where user wants to reference metadata for project references.
+
+                // We've found the output path of a project reference.
+                // Remove the metadata reference since we'll be creating a project reference.
+                metadataReferenceMap = metadataReferenceMap.Remove(path);
+
+                var projectRefFileInfo = loadState.GetProjectFileInfo(projectRefId);
+
+                var handled = false;
+                foreach (var projectFileRef in projectFileInfo.ProjectReferences)
+                {
+                    if (string.Equals(projectFileRef.Path, projectRefFileInfo.FilePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var projectRef = new ProjectReference(projectRefId, projectFileRef.Aliases);
+                        projectReferences.Add(projectRef);
+                        handled = true;
+                        break;
+                    }
+                }
+
+                if (!handled)
+                {
+                    // TODO: Report error
+                }
+            }
+
+            return (metadataReferenceMap.Values, projectReferences);
+        }
+
+        private static ImmutableSortedDictionary<string, MetadataReference> CreateMetadataReferenceMap(IEnumerable<MetadataReference> metadataReferences)
+        {
+            // NOTE: We use a sorted dictionary to avoid implicitly reordering metadata references later.
+            var results = ImmutableSortedDictionary.CreateBuilder<string, MetadataReference>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var metadataReference in metadataReferences)
+            {
+                switch (metadataReference)
+                {
+                    case PortableExecutableReference portableExecutableReference:
+                        results.Add(portableExecutableReference.FilePath, metadataReference);
+                        break;
+                    case UnresolvedMetadataReference unresolvedMetadataReference:
+                        results.Add(unresolvedMetadataReference.Reference, metadataReference);
+                        break;
+                    default:
+                        // TODO: Report issue with unexpected MetadataReference type.
+                        break;
+                }
+            }
+
+            return results.ToImmutable();
+        }
+
+        private async Task<ImmutableArray<ProjectFileInfo>> LoadProjectFileInfosAsync(
             IEnumerable<string> projectFilePaths,
             CancellationToken cancellationToken = default)
         {
@@ -216,7 +420,7 @@ namespace Microsoft.CodeAnalysis.MSBuild
                 {
                     ReportDiagnosticLog(projectFile.Log);
 
-                    results.Add(ProjectFileInfo.CreateEmpty(projectFile.Log));
+                    results.Add(ProjectFileInfo.CreateEmpty(projectFile.FilePath, projectFile.Language, projectFile.Log));
                     continue;
                 }
 
@@ -235,13 +439,15 @@ namespace Microsoft.CodeAnalysis.MSBuild
                     // Enqueue project references
                     foreach (var projectReference in projectFileInfo.ProjectReferences)
                     {
-                        var fullPath = projectReference.FullPath;
+                        // TODO: Handle bad paths.
+
+                        var path = projectReference.Path;
 
                         // TODO: Report failure if project reference doesn't exist on disk.
 
-                        if (!processedSet.Contains(fullPath))
+                        if (!processedSet.Contains(path))
                         {
-                            queue.Enqueue(fullPath);
+                            queue.Enqueue(path);
                         }
                     }
                 }
@@ -293,7 +499,6 @@ namespace Microsoft.CodeAnalysis.MSBuild
             Debug.Assert(loader != null);
 
             var projectId = loadedProjects.GetOrCreateProjectId(projectFilePath);
-            var projectName = Path.GetFileNameWithoutExtension(projectFilePath);
 
             var projectFile = await loader.LoadProjectFileAsync(projectFilePath, _properties, cancellationToken).ConfigureAwait(false);
 
@@ -314,76 +519,24 @@ namespace Microsoft.CodeAnalysis.MSBuild
                 ReportDiagnosticLog(projectFileInfo.Log);
             }
 
-            var outputFilePath = projectFileInfo.OutputFilePath;
-            var projectDirectory = Path.GetDirectoryName(projectFilePath);
-
-            var version = GetProjectVersion(projectFilePath);
-
-            // translate information from command line args
-            var commandLineParser = _workspace.Services.GetLanguageServices(loader.Language).GetService<ICommandLineParserService>();
-            var metadataService = _workspace.Services.GetService<IMetadataService>();
-            var analyzerService = _workspace.Services.GetService<IAnalyzerService>();
-
-            var commandLineArgs = commandLineParser.Parse(
-                arguments: projectFileInfo.CommandLineArgs,
-                baseDirectory: projectDirectory,
-                isInteractive: false,
-                sdkDirectory: RuntimeEnvironment.GetRuntimeDirectory());
+            var commandLineArgs = ParseCommandLineArguments(projectFileInfo);
 
             // we only support file paths in /r command line arguments
+            var metadataService = _workspace.Services.GetService<IMetadataService>();
             var resolver = new WorkspaceMetadataFileReferenceResolver(metadataService, new RelativePathResolver(commandLineArgs.ReferencePaths, commandLineArgs.BaseDirectory));
             var metadataReferences = commandLineArgs.ResolveMetadataReferences(resolver);
 
-            var analyzerLoader = analyzerService.GetLoader();
-            foreach (var path in commandLineArgs.AnalyzerReferences.Select(r => r.FilePath))
-            {
-                if (File.Exists(path))
-                {
-                    analyzerLoader.AddDependencyLocation(path);
-                }
-            }
-
-            var analyzerReferences = commandLineArgs.ResolveAnalyzerReferences(analyzerLoader);
-
-            var defaultEncoding = commandLineArgs.Encoding;
+            var analyzerReferences = ResolveAnalyzerReferences(commandLineArgs);
 
             // docs & additional docs
             var docFileInfos = projectFileInfo.Documents.ToImmutableArrayOrEmpty();
             var additionalDocFileInfos = projectFileInfo.AdditionalDocuments.ToImmutableArrayOrEmpty();
 
             // check for duplicate documents
-            var allDocFileInfos = docFileInfos.AddRange(additionalDocFileInfos);
-            CheckDocuments(allDocFileInfos, projectFilePath, projectId);
+            ReportWarningForDuplicateDocuments(docFileInfos.AddRange(additionalDocFileInfos), projectFilePath, projectId);
 
-            var docs = new List<DocumentInfo>();
-            foreach (var docFileInfo in docFileInfos)
-            {
-                GetDocumentNameAndFolders(docFileInfo.LogicalPath, out var name, out var folders);
-
-                docs.Add(DocumentInfo.Create(
-                    DocumentId.CreateNewId(projectId, debugName: docFileInfo.FilePath),
-                    name,
-                    folders,
-                    projectFile.GetSourceCodeKind(docFileInfo.FilePath),
-                    new FileTextLoader(docFileInfo.FilePath, defaultEncoding),
-                    docFileInfo.FilePath,
-                    docFileInfo.IsGenerated));
-            }
-
-            var additionalDocs = new List<DocumentInfo>();
-            foreach (var docFileInfo in additionalDocFileInfos)
-            {
-                GetDocumentNameAndFolders(docFileInfo.LogicalPath, out var name, out var folders);
-
-                additionalDocs.Add(DocumentInfo.Create(
-                    DocumentId.CreateNewId(projectId, debugName: docFileInfo.FilePath),
-                    name,
-                    folders,
-                    SourceCodeKind.Regular,
-                    new FileTextLoader(docFileInfo.FilePath, defaultEncoding),
-                    docFileInfo.FilePath,
-                    docFileInfo.IsGenerated));
-            }
+            var documents = CreateDocumentInfos(docFileInfos, projectId, commandLineArgs.Encoding);
+            var additionalDocuments = CreateDocumentInfos(additionalDocFileInfos, projectId, commandLineArgs.Encoding);
 
             // project references
             var resolvedReferences = await ResolveProjectReferencesAsync(
@@ -408,34 +561,122 @@ namespace Microsoft.CodeAnalysis.MSBuild
             }
 
             // add all the extra options that are really behavior overrides
-            var compOptions = commandLineArgs.CompilationOptions
-                    .WithXmlReferenceResolver(new XmlFileResolver(projectDirectory))
-                    .WithSourceReferenceResolver(new SourceFileResolver(ImmutableArray<string>.Empty, projectDirectory))
-                    // TODO: https://github.com/dotnet/roslyn/issues/4967
-                    .WithMetadataReferenceResolver(new WorkspaceMetadataFileReferenceResolver(metadataService, new RelativePathResolver(ImmutableArray<string>.Empty, projectDirectory)))
-                    .WithStrongNameProvider(new DesktopStrongNameProvider(commandLineArgs.KeyFileSearchPaths))
-                    .WithAssemblyIdentityComparer(DesktopAssemblyIdentityComparer.Default);
+            var compilationOptions = commandLineArgs.CompilationOptions
+                .WithXmlReferenceResolver(new XmlFileResolver(projectFileInfo.Directory))
+                .WithSourceReferenceResolver(new SourceFileResolver(ImmutableArray<string>.Empty, projectFileInfo.Directory))
+                // TODO: https://github.com/dotnet/roslyn/issues/4967
+                .WithMetadataReferenceResolver(new WorkspaceMetadataFileReferenceResolver(metadataService, new RelativePathResolver(ImmutableArray<string>.Empty, projectFileInfo.Directory)))
+                .WithStrongNameProvider(new DesktopStrongNameProvider(commandLineArgs.KeyFileSearchPaths))
+                .WithAssemblyIdentityComparer(DesktopAssemblyIdentityComparer.Default);
 
-            loadedProjects.Add(
-                ProjectInfo.Create(
-                    projectId,
-                    version,
-                    projectName,
-                    assemblyName,
-                    loader.Language,
-                    projectFilePath,
-                    outputFilePath,
-                    compilationOptions: compOptions,
-                    parseOptions: parseOptions,
-                    documents: docs,
-                    projectReferences: resolvedReferences.ProjectReferences,
-                    metadataReferences: metadataReferences,
-                    analyzerReferences: analyzerReferences,
-                    additionalDocuments: additionalDocs,
-                    isSubmission: false,
-                    hostObjectType: null));
+            var projectInfo = ProjectInfo.Create(
+                projectId,
+                version: GetProjectVersion(projectFileInfo.FilePath),
+                name: Path.GetFileNameWithoutExtension(projectFileInfo.FilePath),
+                assemblyName,
+                projectFileInfo.Language,
+                projectFileInfo.FilePath,
+                projectFileInfo.OutputFilePath,
+                compilationOptions,
+                parseOptions,
+                documents,
+                resolvedReferences.ProjectReferences,
+                metadataReferences,
+                analyzerReferences,
+                additionalDocuments,
+                isSubmission: false,
+                hostObjectType: null);
+
+            loadedProjects.Add(projectInfo);
 
             return projectId;
+        }
+
+        private CommandLineArguments ParseCommandLineArguments(ProjectFileInfo projectFileInfo)
+        {
+            var commandLineParser = _workspace.Services
+                .GetLanguageServices(projectFileInfo.Language)
+                .GetService<ICommandLineParserService>();
+
+            return commandLineParser.Parse(
+                arguments: projectFileInfo.CommandLineArgs,
+                baseDirectory: projectFileInfo.Directory,
+                isInteractive: false,
+                sdkDirectory: RuntimeEnvironment.GetRuntimeDirectory());
+        }
+
+        private void ReportWarningForDuplicateDocuments(ImmutableArray<DocumentFileInfo> fileInfos, string projectFilePath, ProjectId projectId)
+        {
+            var paths = new HashSet<string>();
+            foreach (var doc in fileInfos)
+            {
+                if (!paths.Add(doc.FilePath))
+                {
+                    var message = string.Format(WorkspacesResources.Duplicate_source_file_0_in_project_1, doc.FilePath, projectFilePath);
+                    var diagnostic = new ProjectDiagnostic(WorkspaceDiagnosticKind.Warning, message, projectId);
+                    _workspace.OnWorkspaceFailed(diagnostic);
+                }
+            }
+        }
+
+        private static IEnumerable<DocumentInfo> CreateDocumentInfos(
+            ImmutableArray<DocumentFileInfo> documentFileInfos,
+            ProjectId projectId,
+            Encoding defaultEncoding)
+        {
+            var results = new List<DocumentInfo>();
+
+            foreach (var documentFileInfo in documentFileInfos)
+            {
+                var documentInfo = CreateDocumentInfo(documentFileInfo, projectId, defaultEncoding);
+                results.Add(documentInfo);
+            }
+
+            return results;
+        }
+
+        private static readonly char[] s_directorySplitChars = new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };
+
+        private static DocumentInfo CreateDocumentInfo(DocumentFileInfo documentFileInfo, ProjectId projectId, Encoding defaultEncoding)
+        {
+            var name = documentFileInfo.LogicalPath;
+            var folders = ImmutableArray<string>.Empty;
+
+            var nameParts = documentFileInfo.LogicalPath.Split(s_directorySplitChars, StringSplitOptions.RemoveEmptyEntries);
+            if (nameParts.Length > 0)
+            {
+                if (nameParts.Length > 1)
+                {
+                    folders = nameParts.Take(nameParts.Length - 1).ToImmutableArray();
+                }
+
+                name = nameParts[nameParts.Length - 1];
+            }
+
+            return DocumentInfo.Create(
+                DocumentId.CreateNewId(projectId, debugName: documentFileInfo.FilePath),
+                name,
+                folders,
+                documentFileInfo.SourceCodeKind,
+                new FileTextLoader(documentFileInfo.FilePath, defaultEncoding),
+                documentFileInfo.FilePath,
+                documentFileInfo.IsGenerated);
+        }
+
+        private IEnumerable<AnalyzerReference> ResolveAnalyzerReferences(CommandLineArguments commandLineArgs)
+        {
+            var analyzerService = _workspace.Services.GetService<IAnalyzerService>();
+            var analyzerLoader = analyzerService.GetLoader();
+
+            foreach (var path in commandLineArgs.AnalyzerReferences.Select(r => r.FilePath))
+            {
+                if (File.Exists(path))
+                {
+                    analyzerLoader.AddDependencyLocation(path);
+                }
+            }
+
+            return commandLineArgs.ResolveAnalyzerReferences(analyzerLoader);
         }
 
         private static string GetMsbuildFailedMessage(string projectFilePath, string message)
@@ -500,45 +741,6 @@ namespace Microsoft.CodeAnalysis.MSBuild
             }
 
             return assemblyName;
-        }
-
-        private static readonly char[] s_directorySplitChars = new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };
-
-        private static void GetDocumentNameAndFolders(string logicalPath, out string name, out ImmutableArray<string> folders)
-        {
-            var pathNames = logicalPath.Split(s_directorySplitChars, StringSplitOptions.RemoveEmptyEntries);
-            if (pathNames.Length > 0)
-            {
-                if (pathNames.Length > 1)
-                {
-                    folders = pathNames.Take(pathNames.Length - 1).ToImmutableArray();
-                }
-                else
-                {
-                    folders = ImmutableArray.Create<string>();
-                }
-
-                name = pathNames[pathNames.Length - 1];
-            }
-            else
-            {
-                name = logicalPath;
-                folders = ImmutableArray.Create<string>();
-            }
-        }
-
-        private void CheckDocuments(ImmutableArray<DocumentFileInfo> docs, string projectFilePath, ProjectId projectId)
-        {
-            var paths = new HashSet<string>();
-            foreach (var doc in docs)
-            {
-                if (paths.Contains(doc.FilePath))
-                {
-                    _workspace.OnWorkspaceFailed(new ProjectDiagnostic(WorkspaceDiagnosticKind.Warning, string.Format(WorkspacesResources.Duplicate_source_file_0_in_project_1, doc.FilePath, projectFilePath), projectId));
-                }
-
-                paths.Add(doc.FilePath);
-            }
         }
 
         private class ResolvedReferences
@@ -679,7 +881,7 @@ namespace Microsoft.CodeAnalysis.MSBuild
                 ReportFailure(
                     mode,
                     string.Format(WorkspacesResources.Project_file_not_found_colon_0, path),
-                    msg => new FileNotFoundException(msg));
+                    createException: msg => new FileNotFoundException(msg));
                 return null;
             }
 
@@ -763,7 +965,7 @@ namespace Microsoft.CodeAnalysis.MSBuild
                 ReportFailure(
                     mode,
                     string.Format(WorkspacesResources.Project_file_not_found_colon_0, absolutePath),
-                    msg => new FileNotFoundException(msg));
+                    createException: msg => new FileNotFoundException(msg));
                 return false;
             }
 
@@ -772,7 +974,8 @@ namespace Microsoft.CodeAnalysis.MSBuild
 
         private static string GetAbsolutePath(string path, string baseDirectoryPath)
         {
-            return Path.GetFullPath(FileUtilities.ResolveRelativePath(path, baseDirectoryPath) ?? path);
+            var relativePath = FileUtilities.ResolveRelativePath(path, baseDirectoryPath);
+            return Path.GetFullPath(relativePath ?? path);
         }
 
         private enum ReportMode
@@ -782,7 +985,10 @@ namespace Microsoft.CodeAnalysis.MSBuild
             Ignore
         }
 
-        private void ReportFailure(ReportMode mode, string message, Func<string, Exception> createException = null)
+        private void ReportFailure(
+            ReportMode mode, string message,
+            WorkspaceDiagnosticKind diagnosticKind = WorkspaceDiagnosticKind.Failure,
+            Func<string, Exception> createException = null)
         {
             switch (mode)
             {
@@ -797,7 +1003,7 @@ namespace Microsoft.CodeAnalysis.MSBuild
                     }
 
                 case ReportMode.Log:
-                    _workspace.OnWorkspaceFailed(new WorkspaceDiagnostic(WorkspaceDiagnosticKind.Failure, message));
+                    _workspace.OnWorkspaceFailed(new WorkspaceDiagnostic(diagnosticKind, message));
                     break;
 
                 case ReportMode.Ignore:
@@ -810,7 +1016,7 @@ namespace Microsoft.CodeAnalysis.MSBuild
         {
             foreach (var logItem in log)
             {
-                ReportFailure(ReportMode.Log, GetMsbuildFailedMessage(logItem.ProjectFilePath, logItem.ToString()));
+                ReportFailure(ReportMode.Log, GetMsbuildFailedMessage(logItem.ProjectFilePath, logItem.ToString()), logItem.Kind);
             }
         }
     }

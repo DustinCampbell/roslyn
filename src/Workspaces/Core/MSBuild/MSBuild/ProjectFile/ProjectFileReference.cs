@@ -1,7 +1,6 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
 using System.Collections.Immutable;
-using System.Diagnostics;
 
 namespace Microsoft.CodeAnalysis.MSBuild
 {
@@ -11,28 +10,29 @@ namespace Microsoft.CodeAnalysis.MSBuild
     internal sealed class ProjectFileReference
     {
         /// <summary>
-        /// The path on disk to the other project file. 
-        /// This path may be relative to the referencing project's file or an absolute path.
+        /// The absolute path to the referenced project file.
         /// </summary>
+        /// <remarks>
+        /// In some cases (such as when the project's property value is malformed), the value may
+        /// not represent a legal path. If these cases, <see cref="HasBadPath"/> will return true.
+        /// </remarks>
         public string Path { get; }
 
         /// <summary>
-        /// The absolute path to the referenced project's file.
+        /// If true, the value of <see cref="Path"/> is not a legal path.
         /// </summary>
-        public string FullPath { get; }
+        public bool HasBadPath { get; }
 
         /// <summary>
         /// The aliases assigned to this reference, if any.
         /// </summary>
         public ImmutableArray<string> Aliases { get; }
 
-        public ProjectFileReference(string path, string fullPath, ImmutableArray<string> aliases)
+        public ProjectFileReference(string path, ImmutableArray<string> aliases = default, bool hasBadPath = false)
         {
-            Debug.Assert(!aliases.IsDefault);
-
             this.Path = path;
-            this.FullPath = fullPath;
-            this.Aliases = aliases;
+            this.Aliases = aliases.IsDefault ? ImmutableArray<string>.Empty : aliases;
+            this.HasBadPath = hasBadPath;
         }
     }
 }

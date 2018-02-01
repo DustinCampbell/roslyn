@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
 using System.Collections.Generic;
+using System.IO;
 using Microsoft.CodeAnalysis.MSBuild.Logging;
 using Roslyn.Utilities;
 
@@ -11,6 +12,21 @@ namespace Microsoft.CodeAnalysis.MSBuild
     /// </summary>
     internal sealed class ProjectFileInfo
     {
+        /// <summary>
+        /// The path to this project file.
+        /// </summary>
+        public string FilePath { get; }
+
+        /// <summary>
+        /// The directory of this project file.
+        /// </summary>
+        public string Directory { get; }
+
+        /// <summary>
+        /// The language of this project.
+        /// </summary>
+        public string Language { get; }
+
         /// <summary>
         /// The path to the output file this project generates.
         /// </summary>
@@ -43,6 +59,8 @@ namespace Microsoft.CodeAnalysis.MSBuild
         public DiagnosticLog Log { get; }
 
         public ProjectFileInfo(
+            string filePath,
+            string language,
             string outputFilePath,
             IEnumerable<string> commandLineArgs,
             IEnumerable<DocumentFileInfo> documents,
@@ -50,6 +68,9 @@ namespace Microsoft.CodeAnalysis.MSBuild
             IEnumerable<ProjectFileReference> projectReferences,
             DiagnosticLog log)
         {
+            this.FilePath = filePath;
+            this.Directory = Path.GetDirectoryName(filePath);
+            this.Language = language;
             this.OutputFilePath = outputFilePath;
             this.CommandLineArgs = commandLineArgs.ToImmutableArrayOrEmpty();
             this.Documents = documents.ToImmutableReadOnlyListOrEmpty();
@@ -58,8 +79,9 @@ namespace Microsoft.CodeAnalysis.MSBuild
             this.Log = log;
         }
 
-        public static ProjectFileInfo CreateEmpty(DiagnosticLog log)
+        public static ProjectFileInfo CreateEmpty(string filePath, string language, DiagnosticLog log)
             => new ProjectFileInfo(
+                filePath, language,
                 outputFilePath: null,
                 commandLineArgs: SpecializedCollections.EmptyEnumerable<string>(),
                 documents: SpecializedCollections.EmptyEnumerable<DocumentFileInfo>(),
