@@ -4,7 +4,7 @@ Imports System.Threading.Tasks
 Imports Microsoft.CodeAnalysis.Editor.Options
 Imports Microsoft.CodeAnalysis.VisualBasic
 
-Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense
+Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
     <[UseExportProvider]>
     Public Class VisualBasicSignatureHelpCommandHandlerTests
         Public Shared ReadOnly Property AllCompletionImplementations() As IEnumerable(Of Object())

@@ -4,7 +4,7 @@ Imports System.Threading.Tasks
 Imports Microsoft.CodeAnalysis.CSharp
 Imports Microsoft.CodeAnalysis.Editor.Options
 
-Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense
+Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
     <[UseExportProvider]>
     Public Class CSharpSignatureHelpCommandHandlerTests
 
