@@ -70,7 +70,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
         <WorkItem(985007, "http://vstfdevdiv:8080/DevDiv2/DevDiv/_workitems/edit/985007")>
         Public Sub UpKeyShouldNotCrashWhenSessionIsDismissed()
             ' Create a provider that will return an empty state when queried the second time
-            Dim slowProvider = New Mock(Of ISignatureHelpProvider)
+            Dim slowProvider = New Mock(Of SignatureHelpProvider)
             slowProvider.Setup(Function(p) p.GetItemsAsync(It.IsAny(Of Document), It.IsAny(Of Integer), It.IsAny(Of SignatureHelpTriggerInfo), It.IsAny(Of CancellationToken))) _
                 .Returns(Task.FromResult(New SignatureHelpItems(CreateItems(2), TextSpan.FromBounds(0, 0), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing)))
             Dim controller = CreateController(provider:=slowProvider.Object, waitForPresentation:=True)
@@ -94,7 +94,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
         Public Sub DownKeyShouldNotBlockOnModelComputation()
             Dim mre = New ManualResetEvent(False)
             Dim controller = CreateController(items:=CreateItems(2), waitForPresentation:=False)
-            Dim slowProvider = New Mock(Of ISignatureHelpProvider)
+            Dim slowProvider = New Mock(Of SignatureHelpProvider)
             slowProvider.Setup(Function(p) p.GetItemsAsync(It.IsAny(Of Document), It.IsAny(Of Integer), It.IsAny(Of SignatureHelpTriggerInfo), It.IsAny(Of CancellationToken))) _
                 .Returns(Function()
                              mre.WaitOne()
@@ -112,7 +112,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
         Public Sub UpKeyShouldNotBlockOnModelComputation()
             Dim mre = New ManualResetEvent(False)
             Dim controller = CreateController(items:=CreateItems(2), waitForPresentation:=False)
-            Dim slowProvider = New Mock(Of ISignatureHelpProvider)
+            Dim slowProvider = New Mock(Of SignatureHelpProvider)
             slowProvider.Setup(Function(p) p.GetItemsAsync(It.IsAny(Of Document), It.IsAny(Of Integer), It.IsAny(Of SignatureHelpTriggerInfo), It.IsAny(Of CancellationToken))) _
                 .Returns(Function()
                              mre.WaitOne()
@@ -130,7 +130,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
         Public Async Function UpKeyShouldBlockOnRecomputationAfterPresentation() As Task
             Dim dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher
             Dim worker = Async Function()
-                             Dim slowProvider = New Mock(Of ISignatureHelpProvider)
+                             Dim slowProvider = New Mock(Of SignatureHelpProvider)
                              slowProvider.Setup(Function(p) p.GetItemsAsync(It.IsAny(Of Document), It.IsAny(Of Integer), It.IsAny(Of SignatureHelpTriggerInfo), It.IsAny(Of CancellationToken))) _
                                  .Returns(Task.FromResult(New SignatureHelpItems(CreateItems(2), TextSpan.FromBounds(0, 0), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing)))
 
@@ -230,7 +230,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
         Private Shared Function CreateController(Optional documentProvider As Mock(Of IDocumentProvider) = Nothing,
                                                  Optional presenterSession As Mock(Of ISignatureHelpPresenterSession) = Nothing,
                                                  Optional items As IList(Of SignatureHelpItem) = Nothing,
-                                                 Optional provider As ISignatureHelpProvider = Nothing,
+                                                 Optional provider As SignatureHelpProvider = Nothing,
                                                  Optional waitForPresentation As Boolean = False,
                                                  Optional triggerSession As Boolean = True) As Controller
             Dim document As Document =
@@ -301,7 +301,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
         End Function
 
         Friend Class MockSignatureHelpProvider
-            Implements ISignatureHelpProvider
+            Inherits SignatureHelpProvider
 
             Private ReadOnly _items As IList(Of SignatureHelpItem)
 
@@ -311,18 +311,18 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
 
             Public Property GetItemsCount As Integer
 
-            Public Function GetItemsAsync(document As Document, position As Integer, triggerInfo As SignatureHelpTriggerInfo, cancellationToken As CancellationToken) As Task(Of SignatureHelpItems) Implements ISignatureHelpProvider.GetItemsAsync
+            Public Overrides Function GetItemsAsync(document As Document, position As Integer, triggerInfo As SignatureHelpTriggerInfo, cancellationToken As CancellationToken) As Task(Of SignatureHelpItems)
                 GetItemsCount += 1
                 Return Task.FromResult(If(_items.Any(),
                                        New SignatureHelpItems(_items, TextSpan.FromBounds(position, position), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing),
                                        Nothing))
             End Function
 
-            Public Function IsTriggerCharacter(ch As Char) As Boolean Implements ISignatureHelpProvider.IsTriggerCharacter
+            Public Overrides Function IsTriggerCharacter(ch As Char) As Boolean
                 Return ch = "("c
             End Function
 
-            Public Function IsRetriggerCharacter(ch As Char) As Boolean Implements ISignatureHelpProvider.IsRetriggerCharacter
+            Public Overrides Function IsRetriggerCharacter(ch As Char) As Boolean
                 Return ch = ")"c
             End Function
         End Class

@@ -147,7 +147,7 @@ Namespace Microsoft.VisualStudio.LanguageServices.UnitTests.DebuggerIntelliSense
                 documentElement As XElement,
                 isImmediateWindow As Boolean,
                 Optional extraCompletionProviders As CompletionProvider() = Nothing,
-                Optional extraSignatureHelpProviders As ISignatureHelpProvider() = Nothing) As TestState
+                Optional extraSignatureHelpProviders As SignatureHelpProvider() = Nothing) As TestState
 
             Return New TestState(documentElement,
                 CreateLazyProviders(extraCompletionProviders, LanguageNames.VisualBasic, roles:=Nothing),
@@ -158,7 +158,7 @@ Namespace Microsoft.VisualStudio.LanguageServices.UnitTests.DebuggerIntelliSense
                 workspaceElement As XElement,
                 isImmediateWindow As Boolean,
                 Optional extraCompletionProviders As CompletionProvider() = Nothing,
-                Optional extraSignatureHelpProviders As ISignatureHelpProvider() = Nothing) As TestState
+                Optional extraSignatureHelpProviders As SignatureHelpProvider() = Nothing) As TestState
 
             Return New TestState(
                 workspaceElement,

@@ -5,23 +5,23 @@ using System.Threading.Tasks;
 
 namespace Microsoft.CodeAnalysis.SignatureHelp
 {
-    internal interface ISignatureHelpProvider
+    internal abstract class SignatureHelpProvider
     {
         /// <summary>
         /// Returns true if the character might trigger completion, 
         /// e.g. '(' and ',' for method invocations 
         /// </summary>
-        bool IsTriggerCharacter(char ch);
+        public abstract bool IsTriggerCharacter(char ch);
 
         /// <summary>
         /// Returns true if the character might end a Signature Help session, 
         /// e.g. ')' for method invocations.  
         /// </summary>
-        bool IsRetriggerCharacter(char ch);
+        public abstract bool IsRetriggerCharacter(char ch);
 
         /// <summary>
         /// Returns valid signature help items at the specified position in the document.
         /// </summary>
-        Task<SignatureHelpItems> GetItemsAsync(Document document, int position, SignatureHelpTriggerInfo triggerInfo, CancellationToken cancellationToken);
+        public abstract Task<SignatureHelpItems> GetItemsAsync(Document document, int position, SignatureHelpTriggerInfo triggerInfo, CancellationToken cancellationToken);
     }
 }

@@ -18,7 +18,7 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.SignatureHelp
         {
         }
 
-        internal override ISignatureHelpProvider CreateSignatureHelpProvider()
+        internal override SignatureHelpProvider CreateSignatureHelpProvider()
         {
             return new ElementAccessExpressionSignatureHelpProvider();
         }
@@ -805,7 +805,7 @@ class C
             {
             }
 
-            internal override ISignatureHelpProvider CreateSignatureHelpProvider()
+            internal override SignatureHelpProvider CreateSignatureHelpProvider()
             {
                 return new ElementAccessExpressionSignatureHelpProvider();
             }

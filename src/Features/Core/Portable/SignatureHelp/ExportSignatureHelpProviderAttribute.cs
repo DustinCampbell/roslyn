@@ -13,7 +13,7 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
         public string Language { get; }
 
         public ExportSignatureHelpProviderAttribute(string name, string language)
-            : base(typeof(ISignatureHelpProvider))
+            : base(typeof(SignatureHelpProvider))
         {
             this.Name = name ?? throw new ArgumentNullException(nameof(name));
             this.Language = language ?? throw new ArgumentNullException(nameof(language));

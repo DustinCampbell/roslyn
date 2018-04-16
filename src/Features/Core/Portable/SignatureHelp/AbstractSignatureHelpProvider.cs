@@ -14,7 +14,7 @@ using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.SignatureHelp
 {
-    internal abstract partial class AbstractSignatureHelpProvider : ISignatureHelpProvider
+    internal abstract partial class AbstractSignatureHelpProvider : SignatureHelpProvider
     {
         protected static readonly SymbolDisplayFormat MinimallyQualifiedWithoutParametersFormat =
             SymbolDisplayFormat.MinimallyQualifiedFormat.WithMemberOptions(
@@ -28,8 +28,6 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
         {
         }
 
-        public abstract bool IsTriggerCharacter(char ch);
-        public abstract bool IsRetriggerCharacter(char ch);
         public abstract SignatureHelpState GetCurrentArgumentState(SyntaxNode root, int position, ISyntaxFactsService syntaxFacts, TextSpan currentSpan, CancellationToken cancellationToken);
 
         protected abstract Task<SignatureHelpItems> GetItemsWorkerAsync(Document document, int position, SignatureHelpTriggerInfo triggerInfo, CancellationToken cancellationToken);
@@ -173,7 +171,7 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
                 anonymousTypeDisplayService.InlineDelegateAnonymousTypes(parameter.SelectedDisplayParts, semanticModel, position, symbolDisplayService));
         }
 
-        public async Task<SignatureHelpItems> GetItemsAsync(
+        public override async Task<SignatureHelpItems> GetItemsAsync(
             Document document, int position, SignatureHelpTriggerInfo triggerInfo, CancellationToken cancellationToken)
         {
             var itemsForCurrentDocument = await GetItemsWorkerAsync(document, position, triggerInfo, cancellationToken).ConfigureAwait(false);

@@ -24,7 +24,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
         internal partial class Session
         {
             public void ComputeModel(
-                ImmutableArray<ISignatureHelpProvider> providers,
+                ImmutableArray<SignatureHelpProvider> providers,
                 SignatureHelpTriggerInfo triggerInfo)
             {
                 AssertIsForeground();
@@ -42,7 +42,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
 
             private async Task<Model> ComputeModelInBackgroundAsync(
                 Model currentModel,
-                ImmutableArray<ISignatureHelpProvider> providers,
+                ImmutableArray<SignatureHelpProvider> providers,
                 SnapshotPoint caretPosition,
                 DisconnectedBufferGraph disconnectedBufferGraph,
                 SignatureHelpTriggerInfo triggerInfo,
@@ -130,7 +130,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
                 return s1 != null && s2 != null && s1.SequenceEqual(s2);
             }
 
-            private static SignatureHelpItem GetSelectedItem(Model currentModel, SignatureHelpItems items, ISignatureHelpProvider provider, out bool userSelected)
+            private static SignatureHelpItem GetSelectedItem(Model currentModel, SignatureHelpItems items, SignatureHelpProvider provider, out bool userSelected)
             {
                 // Try to find the most appropriate item in the list to select by default.
 
@@ -176,8 +176,8 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
             private static bool CompareParts(TaggedText p1, TaggedText p2)
                 => p1.ToString() == p2.ToString();
 
-            private async Task<(ISignatureHelpProvider provider, SignatureHelpItems items)> ComputeItemsAsync(
-                ImmutableArray<ISignatureHelpProvider> providers,
+            private async Task<(SignatureHelpProvider provider, SignatureHelpItems items)> ComputeItemsAsync(
+                ImmutableArray<SignatureHelpProvider> providers,
                 SnapshotPoint caretPosition,
                 SignatureHelpTriggerInfo triggerInfo,
                 Document document,
@@ -185,7 +185,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
             {
                 try
                 {
-                    ISignatureHelpProvider bestProvider = null;
+                    SignatureHelpProvider bestProvider = null;
                     SignatureHelpItems bestItems = null;
 
                     // TODO(cyrusn): We're calling into extensions, we need to make ourselves resilient

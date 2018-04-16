@@ -26,8 +26,8 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
     {
         private static readonly object s_controllerPropertyKey = new object();
 
-        private readonly IList<Lazy<ISignatureHelpProvider, OrderableLanguageMetadata>> _allProviders;
-        private ImmutableArray<ISignatureHelpProvider> _providers;
+        private readonly IList<Lazy<SignatureHelpProvider, OrderableLanguageMetadata>> _allProviders;
+        private ImmutableArray<SignatureHelpProvider> _providers;
         private IContentType _lastSeenContentType;
 
         public string DisplayName => EditorFeaturesResources.Signature_Help;
@@ -39,7 +39,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
             IIntelliSensePresenter<ISignatureHelpPresenterSession, ISignatureHelpSession> presenter,
             IAsynchronousOperationListener asyncListener,
             IDocumentProvider documentProvider,
-            IList<Lazy<ISignatureHelpProvider, OrderableLanguageMetadata>> allProviders)
+            IList<Lazy<SignatureHelpProvider, OrderableLanguageMetadata>> allProviders)
             : base(threadingContext, textView, subjectBuffer, presenter, asyncListener, documentProvider, "SignatureHelp")
         {
             _allProviders = allProviders;
@@ -53,7 +53,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
             IIntelliSensePresenter<ISignatureHelpPresenterSession, ISignatureHelpSession> presenter,
             IAsynchronousOperationListener asyncListener,
             IDocumentProvider documentProvider,
-            IList<ISignatureHelpProvider> providers)
+            IList<SignatureHelpProvider> providers)
             : base(threadingContext, textView, subjectBuffer, presenter, asyncListener, documentProvider, "SignatureHelp")
         {
             _providers = providers.ToImmutableArray();
@@ -64,7 +64,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
             EditorCommandArgs args,
             IIntelliSensePresenter<ISignatureHelpPresenterSession, ISignatureHelpSession> presenter,
             IAsynchronousOperationListener asyncListener,
-            IList<Lazy<ISignatureHelpProvider, OrderableLanguageMetadata>> allProviders)
+            IList<Lazy<SignatureHelpProvider, OrderableLanguageMetadata>> allProviders)
         {
             var textView = args.TextView;
             var subjectBuffer = args.SubjectBuffer;
@@ -108,7 +108,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
         }
 
         private void StartSession(
-            ImmutableArray<ISignatureHelpProvider> providers, SignatureHelpTriggerInfo triggerInfo)
+            ImmutableArray<SignatureHelpProvider> providers, SignatureHelpTriggerInfo triggerInfo)
         {
             AssertIsForeground();
             VerifySessionIsInactive();
@@ -117,7 +117,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
             this.sessionOpt.ComputeModel(providers, triggerInfo);
         }
 
-        private ImmutableArray<ISignatureHelpProvider> GetProviders()
+        private ImmutableArray<SignatureHelpProvider> GetProviders()
         {
             this.AssertIsForeground();
 
