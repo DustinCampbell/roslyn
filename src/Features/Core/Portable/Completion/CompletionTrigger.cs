@@ -19,7 +19,7 @@ namespace Microsoft.CodeAnalysis.Completion
         /// </summary>
         public char Character { get; }
 
-        internal CompletionTrigger(CompletionTriggerKind kind, char character = (char)0)
+        internal CompletionTrigger(CompletionTriggerKind kind, char character = '\0')
             : this()
         {
             this.Kind = kind;

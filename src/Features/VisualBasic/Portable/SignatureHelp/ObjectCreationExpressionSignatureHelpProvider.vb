@@ -24,7 +24,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.SignatureHelp
 
         Public Overrides Function GetCurrentArgumentState(root As SyntaxNode, position As Integer, syntaxFacts As ISyntaxFactsService, currentSpan As TextSpan, cancellationToken As CancellationToken) As SignatureHelpState
             Dim expression As ObjectCreationExpressionSyntax = Nothing
-            If TryGetObjectCreationExpression(root, position, syntaxFacts, SignatureHelpTriggerReason.InvokeSignatureHelpCommand, cancellationToken, expression) AndAlso
+            If TryGetObjectCreationExpression(root, position, syntaxFacts, SignatureHelpTriggerKind.Invoke, cancellationToken, expression) AndAlso
                 currentSpan.Start = SignatureHelpUtilities.GetSignatureHelpSpan(expression.ArgumentList).Start Then
 
                 Return SignatureHelpUtilities.GetSignatureHelpState(expression.ArgumentList, position)
@@ -33,7 +33,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.SignatureHelp
             Return Nothing
         End Function
 
-        Private Function TryGetObjectCreationExpression(root As SyntaxNode, position As Integer, syntaxFacts As ISyntaxFactsService, triggerReason As SignatureHelpTriggerReason, cancellationToken As CancellationToken, ByRef expression As ObjectCreationExpressionSyntax) As Boolean
+        Private Function TryGetObjectCreationExpression(root As SyntaxNode, position As Integer, syntaxFacts As ISyntaxFactsService, triggerReason As SignatureHelpTriggerKind, cancellationToken As CancellationToken, ByRef expression As ObjectCreationExpressionSyntax) As Boolean
             If Not CommonSignatureHelpUtilities.TryGetSyntax(root, position, syntaxFacts, triggerReason, AddressOf IsTriggerToken, AddressOf IsArgumentListToken, cancellationToken, expression) Then
                 Return False
             End If
@@ -53,11 +53,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.SignatureHelp
                 token <> node.ArgumentList.CloseParenToken
         End Function
 
-        Protected Overrides Async Function GetItemsWorkerAsync(document As Document, position As Integer, triggerInfo As SignatureHelpTriggerInfo, cancellationToken As CancellationToken) As Task(Of SignatureHelpItems)
+        Protected Overrides Async Function GetItemsWorkerAsync(document As Document, position As Integer, triggerInfo As SignatureHelpTrigger, cancellationToken As CancellationToken) As Task(Of SignatureList)
             Dim root = Await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(False)
 
             Dim objectCreationExpression As ObjectCreationExpressionSyntax = Nothing
-            If Not TryGetObjectCreationExpression(root, position, document.GetLanguageService(Of ISyntaxFactsService), triggerInfo.TriggerReason, cancellationToken, objectCreationExpression) Then
+            If Not TryGetObjectCreationExpression(root, position, document.GetLanguageService(Of ISyntaxFactsService), triggerInfo.Kind, cancellationToken, objectCreationExpression) Then
                 Return Nothing
             End If
 
@@ -82,10 +82,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.SignatureHelp
                 GetDelegateTypeConstructors(objectCreationExpression, semanticModel, symbolDisplayService, anonymousTypeDisplayService, documentationCommentFormattingService, type, within, cancellationToken),
                 GetNormalTypeConstructors(document, objectCreationExpression, semanticModel, symbolDisplayService, anonymousTypeDisplayService, type, within, cancellationToken))
 
-            Return CreateSignatureHelpItems(itemsAndSelected.Items,
-                                            textSpan,
-                                            GetCurrentArgumentState(root, position, syntaxFacts, textSpan, cancellationToken),
-                                            itemsAndSelected.SelectedItem)
+            Return CreateSignatureList(
+                itemsAndSelected.Items,
+                textSpan,
+                GetCurrentArgumentState(root, position, syntaxFacts, textSpan, cancellationToken),
+                itemsAndSelected.SelectedItem)
         End Function
     End Class
 End Namespace

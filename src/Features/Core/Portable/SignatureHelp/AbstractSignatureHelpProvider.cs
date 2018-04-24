@@ -30,10 +30,10 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
 
         public abstract SignatureHelpState GetCurrentArgumentState(SyntaxNode root, int position, ISyntaxFactsService syntaxFacts, TextSpan currentSpan, CancellationToken cancellationToken);
 
-        protected abstract Task<SignatureHelpItems> GetItemsWorkerAsync(Document document, int position, SignatureHelpTriggerInfo triggerInfo, CancellationToken cancellationToken);
+        protected abstract Task<SignatureList> GetItemsWorkerAsync(Document document, int position, SignatureHelpTrigger triggerInfo, CancellationToken cancellationToken);
 
-        protected static SignatureHelpItems CreateSignatureHelpItems(
-            IList<SignatureHelpItem> items, TextSpan applicableSpan, SignatureHelpState state, int? selectedItem)
+        protected static SignatureList CreateSignatureList(
+            ImmutableArray<SignatureHelpItem> items, TextSpan applicableSpan, SignatureHelpState state, int? selectedItem)
         {
             if (items == null || !items.Any() || state == null)
             {
@@ -41,21 +41,21 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
             }
 
             (items, selectedItem) = Filter(items, state.ArgumentNames, selectedItem);
-            return new SignatureHelpItems(items, applicableSpan, state.ArgumentIndex, state.ArgumentCount, state.ArgumentName, selectedItem);
+            return new SignatureList(items, applicableSpan, state.ArgumentIndex, state.ArgumentCount, state.ArgumentName, selectedItem);
         }
 
-        private static (IList<SignatureHelpItem> items, int? selectedItem) Filter(IList<SignatureHelpItem> items, IEnumerable<string> parameterNames, int? selectedItem)
+        private static (ImmutableArray<SignatureHelpItem> items, int? selectedItem) Filter(ImmutableArray<SignatureHelpItem> items, IEnumerable<string> parameterNames, int? selectedItem)
         {
             if (parameterNames == null)
             {
-                return (items.ToList(), selectedItem);
+                return (items, selectedItem);
             }
 
-            var filteredList = items.Where(i => Include(i, parameterNames)).ToList();
-            bool isEmpty = filteredList.Count == 0;
+            var filteredList = items.Where(i => Include(i, parameterNames)).ToImmutableArray();
+            bool isEmpty = filteredList.Length == 0;
             if (!selectedItem.HasValue || isEmpty)
             {
-                return (isEmpty ? items.ToList() : filteredList, selectedItem);
+                return (isEmpty ? items : filteredList, selectedItem);
             }
 
             // adjust the selected item
@@ -171,8 +171,8 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
                 anonymousTypeDisplayService.InlineDelegateAnonymousTypes(parameter.SelectedDisplayParts, semanticModel, position, symbolDisplayService));
         }
 
-        public override async Task<SignatureHelpItems> GetItemsAsync(
-            Document document, int position, SignatureHelpTriggerInfo triggerInfo, CancellationToken cancellationToken)
+        public override async Task<SignatureList> GetItemsAsync(
+            Document document, int position, SignatureHelpTrigger triggerInfo, CancellationToken cancellationToken)
         {
             var itemsForCurrentDocument = await GetItemsWorkerAsync(document, position, triggerInfo, cancellationToken).ConfigureAwait(false);
             if (itemsForCurrentDocument == null)
@@ -218,8 +218,8 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
                 finalItems.Add(UpdateItem(item, platformData, expectedSymbol));
             }
 
-            return new SignatureHelpItems(
-                finalItems, itemsForCurrentDocument.ApplicableSpan,
+            return new SignatureList(
+                finalItems.ToImmutableArray(), itemsForCurrentDocument.ApplicableSpan,
                 itemsForCurrentDocument.ArgumentIndex,
                 itemsForCurrentDocument.ArgumentCount,
                 itemsForCurrentDocument.ArgumentName,
@@ -271,7 +271,7 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
             return item;
         }
 
-        protected async Task<List<Tuple<Document, IEnumerable<SignatureHelpItem>>>> GetItemsForRelatedDocuments(Document document, IEnumerable<DocumentId> relatedDocuments, int position, SignatureHelpTriggerInfo triggerInfo, CancellationToken cancellationToken)
+        protected async Task<List<Tuple<Document, IEnumerable<SignatureHelpItem>>>> GetItemsForRelatedDocuments(Document document, IEnumerable<DocumentId> relatedDocuments, int position, SignatureHelpTrigger triggerInfo, CancellationToken cancellationToken)
         {
             var supportedPlatforms = new List<Tuple<Document, IEnumerable<SignatureHelpItem>>>();
             foreach (var relatedDocumentId in relatedDocuments)

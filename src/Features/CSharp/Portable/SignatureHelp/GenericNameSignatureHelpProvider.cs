@@ -34,7 +34,7 @@ namespace Microsoft.CodeAnalysis.CSharp.SignatureHelp
         protected virtual bool TryGetGenericIdentifier(
             SyntaxNode root, int position,
             ISyntaxFactsService syntaxFacts,
-            SignatureHelpTriggerReason triggerReason,
+            SignatureHelpTriggerKind triggerReason,
             CancellationToken cancellationToken,
             out SyntaxToken genericIdentifier, out SyntaxToken lessThanToken)
         {
@@ -66,10 +66,10 @@ namespace Microsoft.CodeAnalysis.CSharp.SignatureHelp
                 token != node.TypeArgumentList.GreaterThanToken;
         }
 
-        protected override async Task<SignatureHelpItems> GetItemsWorkerAsync(Document document, int position, SignatureHelpTriggerInfo triggerInfo, CancellationToken cancellationToken)
+        protected override async Task<SignatureList> GetItemsWorkerAsync(Document document, int position, SignatureHelpTrigger triggerInfo, CancellationToken cancellationToken)
         {
             var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
-            if (!TryGetGenericIdentifier(root, position, document.GetLanguageService<ISyntaxFactsService>(), triggerInfo.TriggerReason, cancellationToken,
+            if (!TryGetGenericIdentifier(root, position, document.GetLanguageService<ISyntaxFactsService>(), triggerInfo.Kind, cancellationToken,
                     out var genericIdentifier, out var lessThanToken))
             {
                 return null;
@@ -127,14 +127,14 @@ namespace Microsoft.CodeAnalysis.CSharp.SignatureHelp
             var textSpan = GetTextSpan(genericIdentifier, lessThanToken);
             var syntaxFacts = document.GetLanguageService<ISyntaxFactsService>();
 
-            return CreateSignatureHelpItems(accessibleSymbols.Select(s =>
-                Convert(s, lessThanToken, semanticModel, symbolDisplayService, anonymousTypeDisplayService, documentationCommentFormattingService, cancellationToken)).ToList(),
+            return CreateSignatureList(accessibleSymbols.Select(s =>
+                Convert(s, lessThanToken, semanticModel, symbolDisplayService, anonymousTypeDisplayService, documentationCommentFormattingService, cancellationToken)).ToImmutableArrayOrEmpty(),
                 textSpan, GetCurrentArgumentState(root, position, syntaxFacts, textSpan, cancellationToken), selectedItem: null);
         }
 
         public override SignatureHelpState GetCurrentArgumentState(SyntaxNode root, int position, ISyntaxFactsService syntaxFacts, TextSpan currentSpan, CancellationToken cancellationToken)
         {
-            if (!TryGetGenericIdentifier(root, position, syntaxFacts, SignatureHelpTriggerReason.InvokeSignatureHelpCommand, cancellationToken,
+            if (!TryGetGenericIdentifier(root, position, syntaxFacts, SignatureHelpTriggerKind.Invoke, cancellationToken,
                     out var genericIdentifier, out var lessThanToken))
             {
                 return null;

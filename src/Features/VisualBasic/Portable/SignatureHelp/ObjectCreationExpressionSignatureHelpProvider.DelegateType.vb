@@ -1,5 +1,6 @@
 ﻿' Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
+Imports System.Collections.Immutable
 Imports System.Threading
 Imports Microsoft.CodeAnalysis.DocumentationComments
 Imports Microsoft.CodeAnalysis.LanguageServices
@@ -17,7 +18,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.SignatureHelp
                                                      documentationCommentFormattingService As IDocumentationCommentFormattingService,
                                                      delegateType As INamedTypeSymbol,
                                                      within As ISymbol,
-                                                     cancellationToken As CancellationToken) As (items As IList(Of SignatureHelpItem), selectedItem As Integer?)
+                                                     cancellationToken As CancellationToken) As (items As ImmutableArray(Of SignatureHelpItem), selectedItem As Integer?)
             Dim invokeMethod = delegateType.DelegateInvokeMethod
             If invokeMethod Is Nothing Then
                 Return (Nothing, Nothing)
@@ -34,7 +35,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.SignatureHelp
                 suffixParts:=GetDelegateTypePostambleParts(invokeMethod),
                 parameters:=GetDelegateTypeParameters(invokeMethod, semanticModel, position, cancellationToken))
 
-            Return (SpecializedCollections.SingletonList(item), 0)
+            Return (ImmutableArray.Create(item), 0)
         End Function
 
         Private Function GetDelegateTypePreambleParts(invokeMethod As IMethodSymbol, semanticModel As SemanticModel, position As Integer) As IList(Of SymbolDisplayPart)

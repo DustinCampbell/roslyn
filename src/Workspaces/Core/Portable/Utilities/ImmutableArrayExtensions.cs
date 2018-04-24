@@ -15,7 +15,7 @@ namespace Roslyn.Utilities
         {
             if (items == null)
             {
-                return ImmutableArray.Create<T>();
+                return ImmutableArray<T>.Empty;
             }
 
             return ImmutableArray.Create<T>(items);
@@ -25,7 +25,7 @@ namespace Roslyn.Utilities
         {
             if (items == null)
             {
-                return ImmutableArray.Create<T>();
+                return ImmutableArray<T>.Empty;
             }
 
             if (items is ImmutableArray<T> array)

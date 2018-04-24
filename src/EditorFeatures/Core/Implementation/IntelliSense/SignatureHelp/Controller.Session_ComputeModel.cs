@@ -25,7 +25,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
         {
             public void ComputeModel(
                 ImmutableArray<SignatureHelpProvider> providers,
-                SignatureHelpTriggerInfo triggerInfo)
+                SignatureHelpTrigger triggerInfo)
             {
                 AssertIsForeground();
 
@@ -45,7 +45,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
                 ImmutableArray<SignatureHelpProvider> providers,
                 SnapshotPoint caretPosition,
                 DisconnectedBufferGraph disconnectedBufferGraph,
-                SignatureHelpTriggerInfo triggerInfo,
+                SignatureHelpTrigger triggerInfo,
                 CancellationToken cancellationToken)
             {
                 try
@@ -61,15 +61,15 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
                             return currentModel;
                         }
 
-                        if (triggerInfo.TriggerReason == SignatureHelpTriggerReason.RetriggerCommand)
+                        if (triggerInfo.Kind == SignatureHelpTriggerKind.Update)
                         {
                             if (currentModel == null)
                             {
                                 return null;
                             }
 
-                            if (triggerInfo.TriggerCharacter.HasValue &&
-                                !currentModel.Provider.IsRetriggerCharacter(triggerInfo.TriggerCharacter.Value))
+                            if (triggerInfo.Character != '\0' &&
+                                !currentModel.Provider.IsRetriggerCharacter(triggerInfo.Character))
                             {
                                 return currentModel;
                             }
@@ -130,7 +130,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
                 return s1 != null && s2 != null && s1.SequenceEqual(s2);
             }
 
-            private static SignatureHelpItem GetSelectedItem(Model currentModel, SignatureHelpItems items, SignatureHelpProvider provider, out bool userSelected)
+            private static SignatureHelpItem GetSelectedItem(Model currentModel, SignatureList items, SignatureHelpProvider provider, out bool userSelected)
             {
                 // Try to find the most appropriate item in the list to select by default.
 
@@ -176,17 +176,17 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
             private static bool CompareParts(TaggedText p1, TaggedText p2)
                 => p1.ToString() == p2.ToString();
 
-            private async Task<(SignatureHelpProvider provider, SignatureHelpItems items)> ComputeItemsAsync(
+            private async Task<(SignatureHelpProvider provider, SignatureList items)> ComputeItemsAsync(
                 ImmutableArray<SignatureHelpProvider> providers,
                 SnapshotPoint caretPosition,
-                SignatureHelpTriggerInfo triggerInfo,
+                SignatureHelpTrigger triggerInfo,
                 Document document,
                 CancellationToken cancellationToken)
             {
                 try
                 {
                     SignatureHelpProvider bestProvider = null;
-                    SignatureHelpItems bestItems = null;
+                    SignatureList bestItems = null;
 
                     // TODO(cyrusn): We're calling into extensions, we need to make ourselves resilient
                     // to the extension crashing.
@@ -221,7 +221,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
                 }
             }
 
-            private bool IsBetter(SignatureHelpItems bestItems, TextSpan? currentTextSpan)
+            private bool IsBetter(SignatureList bestItems, TextSpan? currentTextSpan)
             {
                 // If we have no best text span, then this span is definitely better.
                 if (bestItems == null)

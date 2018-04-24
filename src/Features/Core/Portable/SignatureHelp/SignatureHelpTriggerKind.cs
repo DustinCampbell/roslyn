@@ -2,21 +2,21 @@
 
 namespace Microsoft.CodeAnalysis.SignatureHelp
 {
-    internal enum SignatureHelpTriggerReason
+    internal enum SignatureHelpTriggerKind
     {
         /// <summary>
         /// Signature Help was triggered through the 'Invoke Signature Help' command
         /// </summary>
-        InvokeSignatureHelpCommand,
+        Invoke,
 
         /// <summary>
         /// Signature Help was triggered through the 'Type Char' command.
         /// </summary>
-        TypeCharCommand,
+        Insertion,
 
         /// <summary>
         /// Signature Help was triggered through typing a closing brace.
         /// </summary>
-        RetriggerCommand,
+        Update,
     }
 }

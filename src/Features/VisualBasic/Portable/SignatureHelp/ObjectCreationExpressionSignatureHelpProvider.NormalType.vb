@@ -1,5 +1,6 @@
 ﻿' Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
+Imports System.Collections.Immutable
 Imports System.Threading
 Imports Microsoft.CodeAnalysis
 Imports Microsoft.CodeAnalysis.DocumentationComments
@@ -18,7 +19,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.SignatureHelp
                                                    anonymousTypeDisplayService As IAnonymousTypeDisplayService,
                                                    normalType As INamedTypeSymbol,
                                                    within As ISymbol,
-                                                   cancellationToken As CancellationToken) As (items As IList(Of SignatureHelpItem), selectedItem As Integer?)
+                                                   cancellationToken As CancellationToken) As (items As ImmutableArray(Of SignatureHelpItem), selectedItem As Integer?)
 
             Dim accessibleConstructors = normalType.InstanceConstructors.
                                                     WhereAsArray(Function(c) c.IsAccessibleWithin(within)).
@@ -31,8 +32,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.SignatureHelp
 
             Dim documentationCommentFormattingService = document.GetLanguageService(Of IDocumentationCommentFormattingService)()
 
-            Dim items = accessibleConstructors.Select(
-                Function(c) ConvertNormalTypeConstructor(c, objectCreationExpression, semanticModel, symbolDisplayService, anonymousTypeDisplayService, documentationCommentFormattingService, cancellationToken)).ToList()
+            Dim items = accessibleConstructors.SelectAsArray(
+                Function(c) ConvertNormalTypeConstructor(c, objectCreationExpression, semanticModel, symbolDisplayService, anonymousTypeDisplayService, documentationCommentFormattingService, cancellationToken))
 
             Dim currentConstructor = semanticModel.GetSymbolInfo(objectCreationExpression, cancellationToken)
             Dim selectedItem = TryGetSelectedIndex(accessibleConstructors, currentConstructor)

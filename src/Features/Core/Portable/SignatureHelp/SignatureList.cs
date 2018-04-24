@@ -1,20 +1,19 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
 using System;
-using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Linq;
 using Microsoft.CodeAnalysis.Text;
 using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.SignatureHelp
 {
-    internal class SignatureHelpItems
+    internal sealed class SignatureList
     {
         /// <summary>
-        /// The list of items to present to the user.
+        /// The <see cref="SignatureHelpItem"/>s to present to the user.
         /// </summary>
-        public IList<SignatureHelpItem> Items { get; }
+        public ImmutableArray<SignatureHelpItem> Items { get; }
 
         /// <summary>
         /// The span this session applies to.
@@ -52,17 +51,17 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
         /// </summary>
         public int? SelectedItemIndex { get; }
 
-        public SignatureHelpItems(
-            IList<SignatureHelpItem> items,
+        public SignatureList(
+            ImmutableArray<SignatureHelpItem> items,
             TextSpan applicableSpan,
             int argumentIndex,
             int argumentCount,
             string argumentName,
             int? selectedItem = null)
         {
-            Contract.ThrowIfNull(items);
-            Contract.ThrowIfTrue(items.IsEmpty());
-            Contract.ThrowIfTrue(selectedItem.HasValue && selectedItem.Value >= items.Count);
+            items = items.ToImmutableArrayOrEmpty();
+
+            Contract.ThrowIfTrue(selectedItem.HasValue && selectedItem.Value >= items.Length);
 
             if (argumentIndex < 0)
             {
@@ -75,8 +74,8 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
             }
 
             // Adjust the `selectedItem` index if duplicates are able to be removed.
-            var distinctItems = items.Distinct().ToList();
-            if (selectedItem.HasValue && items.Count != distinctItems.Count)
+            var distinctItems = items.Distinct();
+            if (selectedItem.HasValue && items.Length != distinctItems.Length)
             {
                 // `selectedItem` index has already been determined to be valid, it now needs to be adjusted to point
                 // to the equivalent item in the reduced list to account for duplicates being removed

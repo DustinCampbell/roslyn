@@ -24,7 +24,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.SignatureHelp
 
         Public Overrides Function GetCurrentArgumentState(root As SyntaxNode, position As Integer, syntaxFacts As ISyntaxFactsService, currentSpan As TextSpan, cancellationToken As CancellationToken) As SignatureHelpState
             Dim functionAggregation As FunctionAggregationSyntax = Nothing
-            If TryGetFunctionAggregation(root, position, syntaxFacts, SignatureHelpTriggerReason.InvokeSignatureHelpCommand, cancellationToken, functionAggregation) AndAlso
+            If TryGetFunctionAggregation(root, position, syntaxFacts, SignatureHelpTriggerKind.Invoke, cancellationToken, functionAggregation) AndAlso
                 functionAggregation.SpanStart = currentSpan.Start Then
                 Return New SignatureHelpState(0, 0, Nothing, Nothing)
             End If
@@ -32,7 +32,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.SignatureHelp
             Return Nothing
         End Function
 
-        Private Function TryGetFunctionAggregation(root As SyntaxNode, position As Integer, syntaxFacts As ISyntaxFactsService, triggerReason As SignatureHelpTriggerReason,
+        Private Function TryGetFunctionAggregation(root As SyntaxNode, position As Integer, syntaxFacts As ISyntaxFactsService, triggerReason As SignatureHelpTriggerKind,
                                                    cancellationToken As CancellationToken, ByRef functionAggregation As FunctionAggregationSyntax) As Boolean
             Return CommonSignatureHelpUtilities.TryGetSyntax(
                 root,
@@ -45,11 +45,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.SignatureHelp
                 functionAggregation)
         End Function
 
-        Protected Overrides Async Function GetItemsWorkerAsync(document As Document, position As Integer, triggerInfo As SignatureHelpTriggerInfo, cancellationToken As CancellationToken) As Task(Of SignatureHelpItems)
+        Protected Overrides Async Function GetItemsWorkerAsync(document As Document, position As Integer, triggerInfo As SignatureHelpTrigger, cancellationToken As CancellationToken) As Task(Of SignatureList)
             Dim root = Await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(False)
 
             Dim functionAggregation As FunctionAggregationSyntax = Nothing
-            If Not TryGetFunctionAggregation(root, position, document.GetLanguageService(Of ISyntaxFactsService), triggerInfo.TriggerReason, cancellationToken, functionAggregation) Then
+            If Not TryGetFunctionAggregation(root, position, document.GetLanguageService(Of ISyntaxFactsService), triggerInfo.Kind, cancellationToken, functionAggregation) Then
                 Return Nothing
             End If
 
@@ -80,8 +80,8 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.SignatureHelp
             Dim textSpan = CommonSignatureHelpUtilities.GetSignatureHelpSpan(functionAggregation, functionAggregation.SpanStart, Function(n) n.CloseParenToken)
             Dim syntaxFacts = document.GetLanguageService(Of ISyntaxFactsService)
 
-            Return CreateSignatureHelpItems(
-                accessibleMethods.Select(Function(m) Convert(m, functionAggregation, semanticModel, symbolDisplayService, anonymousTypeDisplayService, documentationCommentFormattingService, cancellationToken)).ToList(),
+            Return CreateSignatureList(
+                accessibleMethods.Select(Function(m) Convert(m, functionAggregation, semanticModel, symbolDisplayService, anonymousTypeDisplayService, documentationCommentFormattingService, cancellationToken)).ToImmutableArrayOrEmpty(),
                 textSpan, GetCurrentArgumentState(root, position, syntaxFacts, textSpan, cancellationToken), selectedItem:=Nothing)
         End Function
 

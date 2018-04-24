@@ -5,12 +5,17 @@ using System.Composition;
 
 namespace Microsoft.CodeAnalysis.SignatureHelp
 {
+    /// <summary>
+    /// Use this attribute to export a <see cref="SignatureHelpProvider"/> so that it will
+    /// be found and used by the per language associated <see cref="SignatureHelpService"/>.
+    /// </summary>
     [MetadataAttribute]
     [AttributeUsage(AttributeTargets.Class)]
-    internal class ExportSignatureHelpProviderAttribute : ExportAttribute
+    internal sealed class ExportSignatureHelpProviderAttribute : ExportAttribute
     {
         public string Name { get; }
         public string Language { get; }
+        public string[] Roles { get; set; }
 
         public ExportSignatureHelpProviderAttribute(string name, string language)
             : base(typeof(SignatureHelpProvider))

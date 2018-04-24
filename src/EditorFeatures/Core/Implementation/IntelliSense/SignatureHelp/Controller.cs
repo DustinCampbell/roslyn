@@ -108,7 +108,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
         }
 
         private void StartSession(
-            ImmutableArray<SignatureHelpProvider> providers, SignatureHelpTriggerInfo triggerInfo)
+            ImmutableArray<SignatureHelpProvider> providers, SignatureHelpTrigger triggerInfo)
         {
             AssertIsForeground();
             VerifySessionIsInactive();
@@ -153,7 +153,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
                 return;
             }
 
-            sessionOpt.ComputeModel(GetProviders(), new SignatureHelpTriggerInfo(SignatureHelpTriggerReason.RetriggerCommand));
+            sessionOpt.ComputeModel(GetProviders(), SignatureHelpTrigger.CreateUpdateTrigger());
         }
     }
 }

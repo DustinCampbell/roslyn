@@ -14,6 +14,7 @@ using Microsoft.CodeAnalysis.LanguageServices;
 using Microsoft.CodeAnalysis.Shared.Extensions;
 using Microsoft.CodeAnalysis.SignatureHelp;
 using Microsoft.CodeAnalysis.Text;
+using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.CSharp.SignatureHelp
 {
@@ -30,7 +31,7 @@ namespace Microsoft.CodeAnalysis.CSharp.SignatureHelp
             return ch == ')';
         }
 
-        private bool TryGetInvocationExpression(SyntaxNode root, int position, ISyntaxFactsService syntaxFacts, SignatureHelpTriggerReason triggerReason, CancellationToken cancellationToken, out InvocationExpressionSyntax expression)
+        private bool TryGetInvocationExpression(SyntaxNode root, int position, ISyntaxFactsService syntaxFacts, SignatureHelpTriggerKind triggerReason, CancellationToken cancellationToken, out InvocationExpressionSyntax expression)
         {
             if (!CommonSignatureHelpUtilities.TryGetSyntax(root, position, syntaxFacts, triggerReason, IsTriggerToken, IsArgumentListToken, cancellationToken, out expression))
             {
@@ -51,10 +52,10 @@ namespace Microsoft.CodeAnalysis.CSharp.SignatureHelp
                 token != expression.ArgumentList.CloseParenToken;
         }
 
-        protected override async Task<SignatureHelpItems> GetItemsWorkerAsync(Document document, int position, SignatureHelpTriggerInfo triggerInfo, CancellationToken cancellationToken)
+        protected override async Task<SignatureList> GetItemsWorkerAsync(Document document, int position, SignatureHelpTrigger triggerInfo, CancellationToken cancellationToken)
         {
             var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
-            if (!TryGetInvocationExpression(root, position, document.GetLanguageService<ISyntaxFactsService>(), triggerInfo.TriggerReason, cancellationToken, out var invocationExpression))
+            if (!TryGetInvocationExpression(root, position, document.GetLanguageService<ISyntaxFactsService>(), triggerInfo.Kind, cancellationToken, out var invocationExpression))
             {
                 return null;
             }
@@ -97,8 +98,8 @@ namespace Microsoft.CodeAnalysis.CSharp.SignatureHelp
             {
                 var selectedItem = TryGetSelectedIndex(methodGroup, symbolInfo);
 
-                return CreateSignatureHelpItems(
-                    GetMethodGroupItems(invocationExpression, semanticModel, symbolDisplayService, anonymousTypeDisplayService, documentationCommentFormattingService, within, methodGroup, cancellationToken),
+                return CreateSignatureList(
+                    GetMethodGroupItems(invocationExpression, semanticModel, symbolDisplayService, anonymousTypeDisplayService, documentationCommentFormattingService, within, methodGroup, cancellationToken).ToImmutableArrayOrEmpty(),
                     textSpan,
                     GetCurrentArgumentState(root, position, syntaxFacts, textSpan, cancellationToken),
                     selectedItem);
@@ -106,9 +107,9 @@ namespace Microsoft.CodeAnalysis.CSharp.SignatureHelp
             else if (expressionType != null && expressionType.TypeKind == TypeKind.Delegate)
             {
                 var items = GetDelegateInvokeItems(invocationExpression, semanticModel, symbolDisplayService, anonymousTypeDisplayService,
-                    documentationCommentFormattingService, within, expressionType, out var selectedItem, cancellationToken);
+                    documentationCommentFormattingService, within, expressionType, out var selectedItem, cancellationToken).ToImmutableArrayOrEmpty();
 
-                return CreateSignatureHelpItems(items, textSpan, GetCurrentArgumentState(root, position, syntaxFacts, textSpan, cancellationToken), selectedItem);
+                return CreateSignatureList(items, textSpan, GetCurrentArgumentState(root, position, syntaxFacts, textSpan, cancellationToken), selectedItem);
             }
             else
             {
@@ -122,7 +123,7 @@ namespace Microsoft.CodeAnalysis.CSharp.SignatureHelp
                     root,
                     position,
                     syntaxFacts,
-                    SignatureHelpTriggerReason.InvokeSignatureHelpCommand,
+                    SignatureHelpTriggerKind.Invoke,
                     cancellationToken,
                     out var expression) &&
                 currentSpan.Start == SignatureHelpUtilities.GetSignatureHelpSpan(expression.ArgumentList).Start)

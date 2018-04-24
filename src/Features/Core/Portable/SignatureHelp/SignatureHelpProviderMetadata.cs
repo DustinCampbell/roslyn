@@ -4,13 +4,13 @@ using System.Collections.Generic;
 using Microsoft.CodeAnalysis.Host.Mef;
 using Roslyn.Utilities;
 
-namespace Microsoft.CodeAnalysis.Completion.Providers
+namespace Microsoft.CodeAnalysis.SignatureHelp
 {
-    internal sealed class CompletionProviderMetadata : OrderableLanguageMetadata
+    internal sealed class SignatureHelpProviderMetadata : OrderableLanguageMetadata
     {
         public string[] Roles { get; }
 
-        public CompletionProviderMetadata(IDictionary<string, object> data)
+        public SignatureHelpProviderMetadata(IDictionary<string, object> data)
             : base(data)
         {
             this.Roles = (string[])data.GetValueOrDefault("Roles")

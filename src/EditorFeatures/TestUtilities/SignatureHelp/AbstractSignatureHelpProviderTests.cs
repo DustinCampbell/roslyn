@@ -163,9 +163,9 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.SignatureHelp
             }
         }
 
-        private static async Task<SignatureHelpState> GetArgumentStateAsync(int cursorPosition, Document document, SignatureHelpProvider signatureHelpProvider, SignatureHelpTriggerInfo triggerInfo)
+        private static async Task<SignatureHelpState> GetArgumentStateAsync(int cursorPosition, Document document, SignatureHelpProvider signatureHelpProvider, SignatureHelpTrigger trigger)
         {
-            var items = await signatureHelpProvider.GetItemsAsync(document, cursorPosition, triggerInfo, CancellationToken.None);
+            var items = await signatureHelpProvider.GetItemsAsync(document, cursorPosition, trigger, CancellationToken.None);
             return items == null ? null : new SignatureHelpState(items.ArgumentIndex, items.ArgumentCount, items.ArgumentName, null);
         }
 
@@ -176,13 +176,13 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.SignatureHelp
             var document = workspaceFixture.UpdateDocument(code, sourceCodeKind);
 
             var signatureHelpProvider = CreateSignatureHelpProvider();
-            var triggerInfo = new SignatureHelpTriggerInfo(SignatureHelpTriggerReason.InvokeSignatureHelpCommand);
-            var items = await signatureHelpProvider.GetItemsAsync(document, cursorPosition, triggerInfo, CancellationToken.None);
-            Assert.Equal(expectedParameterName, (await GetArgumentStateAsync(cursorPosition, document, signatureHelpProvider, triggerInfo)).ArgumentName);
+            var trigger = SignatureHelpTrigger.Invoke;
+            var items = await signatureHelpProvider.GetItemsAsync(document, cursorPosition, trigger, CancellationToken.None);
+            Assert.Equal(expectedParameterName, (await GetArgumentStateAsync(cursorPosition, document, signatureHelpProvider, trigger)).ArgumentName);
         }
 
         private void CompareAndAssertCollectionsAndCurrentParameter(
-            IEnumerable<SignatureHelpTestItem> expectedTestItems, SignatureHelpItems actualSignatureHelpItems, SignatureHelpProvider signatureHelpProvider, Document document, int cursorPosition)
+            IEnumerable<SignatureHelpTestItem> expectedTestItems, SignatureList actualSignatureHelpItems, SignatureHelpProvider signatureHelpProvider, Document document, int cursorPosition)
         {
             Assert.Equal(expectedTestItems.Count(), actualSignatureHelpItems.Items.Count());
 
@@ -200,7 +200,7 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.SignatureHelp
         }
 
         private void CompareSigHelpItemsAndCurrentPosition(
-            SignatureHelpItems items,
+            SignatureList items,
             SignatureHelpItem actualSignatureHelpItem,
             SignatureHelpTestItem expectedTestItem,
             SignatureHelpProvider signatureHelpProvider,
@@ -384,21 +384,20 @@ namespace Microsoft.CodeAnalysis.Editor.UnitTests.SignatureHelp
             bool usePreviousCharAsTrigger = false)
         {
             var signatureHelpProvider = CreateSignatureHelpProvider();
-            var triggerInfo = new SignatureHelpTriggerInfo(SignatureHelpTriggerReason.InvokeSignatureHelpCommand);
+            var trigger = SignatureHelpTrigger.Invoke;
 
             if (usePreviousCharAsTrigger)
             {
-                triggerInfo = new SignatureHelpTriggerInfo(
-                    SignatureHelpTriggerReason.TypeCharCommand,
+                trigger = SignatureHelpTrigger.CreateInsertionTrigger(
                     code.ElementAt(cursorPosition - 1));
 
-                if (!signatureHelpProvider.IsTriggerCharacter(triggerInfo.TriggerCharacter.Value))
+                if (!signatureHelpProvider.IsTriggerCharacter(trigger.Character))
                 {
                     return;
                 }
             }
 
-            var items = await signatureHelpProvider.GetItemsAsync(document, cursorPosition, triggerInfo, CancellationToken.None);
+            var items = await signatureHelpProvider.GetItemsAsync(document, cursorPosition, trigger, CancellationToken.None);
 
             // If we're expecting 0 items, then there's no need to compare them
             if ((expectedOrderedItemsOrNull == null || !expectedOrderedItemsOrNull.Any()) && items == null)

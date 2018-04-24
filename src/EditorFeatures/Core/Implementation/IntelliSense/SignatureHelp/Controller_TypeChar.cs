@@ -75,7 +75,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
             // other providers could still be valid, but doesn't explicitly treat the typed character as
             // a trigger character.
             var (textuallyTriggeredProviders, untriggeredProviders) = FilterProviders(allProviders, args.TypedChar);
-            var triggerInfo = new SignatureHelpTriggerInfo(SignatureHelpTriggerReason.TypeCharCommand, args.TypedChar);
+            var trigger = SignatureHelpTrigger.CreateInsertionTrigger(args.TypedChar);
 
             if (!IsSessionActive)
             {
@@ -86,7 +86,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
                 {
                     // First create the session that represents that we now have a potential 
                     // signature help list. Then tell it to start computing.
-                    StartSession(textuallyTriggeredProviders, triggerInfo);
+                    StartSession(textuallyTriggeredProviders, trigger);
                     return;
                 }
                 else
@@ -104,7 +104,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
                     // In this case, we should requery all providers.
                     //
                     // e.g.     Math.Max(Math.Min(1,2)$$
-                    sessionOpt.ComputeModel(allProviders, new SignatureHelpTriggerInfo(SignatureHelpTriggerReason.RetriggerCommand, triggerInfo.TriggerCharacter));
+                    sessionOpt.ComputeModel(allProviders, SignatureHelpTrigger.CreateUpdateTrigger(trigger.Character));
                     computed = true;
                 }
 
@@ -115,14 +115,14 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
                     //
                     // Or it can trigger a new list. Ask the computation to compute again.
                     sessionOpt.ComputeModel(
-                        textuallyTriggeredProviders.Concat(untriggeredProviders), triggerInfo);
+                        textuallyTriggeredProviders.Concat(untriggeredProviders), trigger);
                     computed = true;
                 }
 
                 if (!computed)
                 {
                     // A character was typed and we haven't updated our model; do so now.
-                    sessionOpt.ComputeModel(allProviders, new SignatureHelpTriggerInfo(SignatureHelpTriggerReason.RetriggerCommand));
+                    sessionOpt.ComputeModel(allProviders, SignatureHelpTrigger.CreateUpdateTrigger());
                 }
             }
         }
