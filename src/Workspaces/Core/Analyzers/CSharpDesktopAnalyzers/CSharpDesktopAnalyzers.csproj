@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (c)  Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Platform Condition="'$(Platform)' == ''">AnyCPU</Platform>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Microsoft.CodeAnalysis.Workspaces.Desktop.CSharp.Analyzers</RootNamespace>
+    <AssemblyName>Microsoft.CodeAnalysis.Workspaces.Desktop.CSharp.Analyzers</AssemblyName>
+    <TargetFramework>netstandard1.3</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup Label="Project References">
+    <ProjectReference Include="..\..\..\..\Compilers\Core\Portable\CodeAnalysis.csproj" />
+    <ProjectReference Include="..\..\..\..\Compilers\CSharp\Portable\CSharpCodeAnalysis.csproj" />
+    <ProjectReference Include="..\DesktopAnalyzers\DesktopAnalyzers.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleToTest Include="Microsoft.CodeAnalysis.Workspaces.Desktop.CSharp.Analyzers.UnitTests" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Update="CSharpDesktopAnalyzersResources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>CSharpDesktopAnalyzersResources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Update="CSharpDesktopAnalyzersResources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>CSharpDesktopAnalyzersResources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+</Project>
