@@ -20,7 +20,7 @@ namespace Microsoft.CodeAnalysis.Completion
     /// <summary>
     /// A subtype of <see cref="CompletionService"/> that aggregates completions from one or more <see cref="CompletionProvider"/>s.
     /// </summary>
-    public abstract class CompletionServiceWithProviders : CompletionService, IEqualityComparer<ImmutableHashSet<string>>
+    public abstract class CompletionServiceWithProviders : CompletionService
     {
         private static readonly Func<string, List<CompletionItem>> s_createList = _ => new List<CompletionItem>();
 
@@ -51,7 +51,7 @@ namespace Microsoft.CodeAnalysis.Completion
         {
             _workspace = workspace;
             ExclusiveProviders = exclusiveProviders;
-            _rolesToProviders = new Dictionary<ImmutableHashSet<string>, ImmutableArray<CompletionProvider>>(this);
+            _rolesToProviders = new Dictionary<ImmutableHashSet<string>, ImmutableArray<CompletionProvider>>(HashSetEqualityComparer<string>.Instance);
             _createRoleProviders = CreateRoleProviders;
             _getProviderByName = GetProviderByName;
         }
@@ -502,40 +502,6 @@ namespace Microsoft.CodeAnalysis.Completion
             {
                 return CompletionChange.Create(new TextChange(item.Span, item.DisplayText));
             }
-        }
-
-        bool IEqualityComparer<ImmutableHashSet<string>>.Equals(ImmutableHashSet<string> x, ImmutableHashSet<string> y)
-        {
-            if (x == y)
-            {
-                return true;
-            }
-
-            if (x.Count != y.Count)
-            {
-                return false;
-            }
-
-            foreach (var v in x)
-            {
-                if (!y.Contains(v))
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        int IEqualityComparer<ImmutableHashSet<string>>.GetHashCode(ImmutableHashSet<string> obj)
-        {
-            var hash = 0;
-            foreach (var o in obj)
-            {
-                hash += o.GetHashCode();
-            }
-
-            return hash;
         }
     }
 }
