@@ -78,9 +78,7 @@ namespace Microsoft.CodeAnalysis.Completion
                 var mefExporter = (IMefHostExportProvider)_workspace.Services.HostServices;
 
                 var providers = ExtensionOrderer.Order(
-                        mefExporter.GetExports<CompletionProvider, CompletionProviderMetadata>()
-                        .Where(lz => lz.Metadata.Language == language)
-                        ).ToList();
+                    mefExporter.GetExports<CompletionProvider, CompletionProviderMetadata>(language));
 
                 Interlocked.CompareExchange(ref _importedProviders, providers, null);
             }

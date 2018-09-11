@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Microsoft.CodeAnalysis.Host.Mef
 {
@@ -9,5 +10,17 @@ namespace Microsoft.CodeAnalysis.Host.Mef
     {
         IEnumerable<Lazy<TExtension, TMetadata>> GetExports<TExtension, TMetadata>();
         IEnumerable<Lazy<TExtension>> GetExports<TExtension>();
+    }
+
+    internal static class MefHostExportProviderExtensions
+    {
+        public static IEnumerable<Lazy<TExtension, TMetadata>> GetExports<TExtension, TMetadata>(
+            this IMefHostExportProvider mefHostExportProvider,
+            string language)
+            where TMetadata : ILanguageMetadata
+        {
+            return mefHostExportProvider.GetExports<TExtension, TMetadata>()
+                .Where(lz => lz.Metadata.Language == language);
+        }
     }
 }
