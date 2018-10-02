@@ -73,7 +73,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
             ' Create a provider that will return an empty state when queried the second time
             Dim slowProvider = New Mock(Of SignatureHelpProvider)
             slowProvider.Setup(Function(p) p.GetItemsAsync(It.IsAny(Of Document), It.IsAny(Of Integer), It.IsAny(Of SignatureHelpTrigger), It.IsAny(Of CancellationToken))) _
-                .Returns(Task.FromResult(New SignatureList(CreateItems(2), TextSpan.FromBounds(0, 0), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing)))
+                .Returns(Task.FromResult(New SignatureList(slowProvider.Object, CreateItems(2), TextSpan.FromBounds(0, 0), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing)))
             Dim controller = CreateController(provider:=slowProvider.Object, waitForPresentation:=True)
 
             ' Now force an update to the model that will result in stopping the session
@@ -99,7 +99,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
             slowProvider.Setup(Function(p) p.GetItemsAsync(It.IsAny(Of Document), It.IsAny(Of Integer), It.IsAny(Of SignatureHelpTrigger), It.IsAny(Of CancellationToken))) _
                 .Returns(Function()
                              mre.WaitOne()
-                             Return Task.FromResult(New SignatureList(CreateItems(2), TextSpan.FromBounds(0, 0), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing))
+                             Return Task.FromResult(New SignatureList(slowProvider.Object, CreateItems(2), TextSpan.FromBounds(0, 0), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing))
                          End Function)
 
 
@@ -117,7 +117,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
             slowProvider.Setup(Function(p) p.GetItemsAsync(It.IsAny(Of Document), It.IsAny(Of Integer), It.IsAny(Of SignatureHelpTrigger), It.IsAny(Of CancellationToken))) _
                 .Returns(Function()
                              mre.WaitOne()
-                             Return Task.FromResult(New SignatureList(CreateItems(2), TextSpan.FromBounds(0, 0), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing))
+                             Return Task.FromResult(New SignatureList(slowProvider.Object, CreateItems(2), TextSpan.FromBounds(0, 0), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing))
                          End Function)
 
 
@@ -129,11 +129,12 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
         <WpfFact, Trait(Traits.Feature, Traits.Features.SignatureHelp)>
         <WorkItem(179726, "https://devdiv.visualstudio.com/DefaultCollection/DevDiv/_workItems?id=179726&_a=edit")>
         Public Async Function UpKeyShouldBlockOnRecomputationAfterPresentation() As Task
-            Dim dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher
+            Dim dispatcher = Windows.Threading.Dispatcher.CurrentDispatcher
+
             Dim worker = Async Function()
                              Dim slowProvider = New Mock(Of SignatureHelpProvider)
                              slowProvider.Setup(Function(p) p.GetItemsAsync(It.IsAny(Of Document), It.IsAny(Of Integer), It.IsAny(Of SignatureHelpTrigger), It.IsAny(Of CancellationToken))) _
-                                 .Returns(Task.FromResult(New SignatureList(CreateItems(2), TextSpan.FromBounds(0, 0), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing)))
+                                 .Returns(Task.FromResult(New SignatureList(slowProvider.Object, CreateItems(2), TextSpan.FromBounds(0, 0), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing)))
 
                              Dim controller = dispatcher.Invoke(Function() CreateController(provider:=slowProvider.Object, waitForPresentation:=True))
 
@@ -143,7 +144,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
                              slowProvider.Setup(Function(p) p.GetItemsAsync(It.IsAny(Of Document), It.IsAny(Of Integer), It.IsAny(Of SignatureHelpTrigger), It.IsAny(Of CancellationToken))) _
                                  .Returns(Function()
                                               checkpoint.Task.Wait()
-                                              Return Task.FromResult(New SignatureList(CreateItems(2), TextSpan.FromBounds(0, 2), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing))
+                                              Return Task.FromResult(New SignatureList(slowProvider.Object, CreateItems(2), TextSpan.FromBounds(0, 2), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing))
                                           End Function)
 
                              dispatcher.Invoke(Sub() DirectCast(controller, IChainedCommandHandler(Of TypeCharCommandArgs)).ExecuteCommand(
@@ -159,8 +160,8 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
                              GetMocks(controller).PresenterSession.Verify(Sub(p) p.PresentItems(It.IsAny(Of ITrackingSpan), It.IsAny(Of IList(Of SignatureHelpItem)),
                                                                                                 It.IsAny(Of SignatureHelpItem), It.IsAny(Of Integer?)), Times.Exactly(2))
                          End Function
-            Await worker().ConfigureAwait(False)
 
+            Await worker().ConfigureAwait(False)
         End Function
 
         <WpfFact, Trait(Traits.Feature, Traits.Features.SignatureHelp)>
@@ -200,9 +201,13 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
         Public Sub RetriggerActiveSessionOnClosingBrace()
             Dim controller = CreateController(waitForPresentation:=True)
 
-            DirectCast(controller, IChainedCommandHandler(Of TypeCharCommandArgs)).ExecuteCommand(
-                New TypeCharCommandArgs(CreateMock(Of ITextView), CreateMock(Of ITextBuffer), ")"c),
-                Sub() GetMocks(controller).Buffer.Insert(0, ")"), TestCommandExecutionContext.Create())
+            Dim commandHandler = DirectCast(controller, IChainedCommandHandler(Of TypeCharCommandArgs))
+
+            commandHandler.ExecuteCommand(
+                args:=New TypeCharCommandArgs(CreateMock(Of ITextView), CreateMock(Of ITextBuffer), ")"c),
+                nextCommandHandler:=Sub() GetMocks(controller).Buffer.Insert(0, ")"),
+                executionContext:=TestCommandExecutionContext.Create())
+
             controller.WaitForController()
 
             ' GetItemsAsync is called once initially, and then once as a result of handling the typechar command
@@ -267,7 +272,6 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
             presenterSession.Setup(Sub(p) p.PresentItems(It.IsAny(Of ITrackingSpan), It.IsAny(Of IList(Of SignatureHelpItem)), It.IsAny(Of SignatureHelpItem), It.IsAny(Of Integer?))) _
                 .Callback(Sub() presenterSession.SetupGet(Function(p) p.EditorSessionIsActive).Returns(True))
 
-
             Dim controller = New Controller(
                 threadingContext,
                 view.Object,
@@ -276,6 +280,9 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
                 asyncListener.Object,
                 documentProvider.Object,
                 {provider})
+
+            Dim service = DirectCast(SignatureHelpService.GetService(document), SignatureHelpServiceWithProviders)
+            service.SetTestProviders({provider})
 
             s_controllerMocksMap.Add(controller, New ControllerMocks(
                       view,
@@ -317,7 +324,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
             Public Overrides Function GetItemsAsync(document As Document, position As Integer, triggerInfo As SignatureHelpTrigger, cancellationToken As CancellationToken) As Task(Of SignatureList)
                 GetItemsCount += 1
                 Return Task.FromResult(If(_items.Any(),
-                                       New SignatureList(_items, TextSpan.FromBounds(position, position), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing),
+                                       New SignatureList(Me, _items, TextSpan.FromBounds(position, position), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing),
                                        Nothing))
             End Function
 

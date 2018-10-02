@@ -36,13 +36,12 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
                 // compute a new model and send that along.
                 Computation.ChainTaskAndNotifyControllerWhenFinished(
                     (model, cancellationToken) => ComputeModelInBackgroundAsync(
-                        model, providers, caretPosition, disconnectedBufferGraph,
+                        model, caretPosition, disconnectedBufferGraph,
                         triggerInfo, cancellationToken));
             }
 
             private async Task<Model> ComputeModelInBackgroundAsync(
                 Model currentModel,
-                ImmutableArray<SignatureHelpProvider> providers,
                 SnapshotPoint caretPosition,
                 DisconnectedBufferGraph disconnectedBufferGraph,
                 SignatureHelpTrigger triggerInfo,
@@ -75,34 +74,41 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
                             }
                         }
 
-                        // first try to query the providers that can trigger on the specified character
-                        var (provider, items) = await ComputeItemsAsync(
-                            providers, caretPosition, triggerInfo,
-                            document, cancellationToken).ConfigureAwait(false);
+                        var service = SignatureHelpService.GetService(document);
+                        if (service == null)
+                        {
+                            // couldn't get a service, so we can't produce a model.
+                            return null;
+                        }
 
-                        if (provider == null)
+                        // first try to query the providers that can trigger on the specified character
+                        var list = await service.GetSignaturesAsync(
+                            document, caretPosition, triggerInfo,
+                            cancellationToken: cancellationToken).ConfigureAwait(false);
+
+                        if (list == null || list.Provider == null)
                         {
                             // No provider produced items. So we can't produce a model
                             return null;
                         }
 
                         if (currentModel != null &&
-                            currentModel.Provider == provider &&
-                            currentModel.GetCurrentSpanInSubjectBuffer(disconnectedBufferGraph.SubjectBufferSnapshot).Span.Start == items.ApplicableSpan.Start &&
-                            currentModel.Items.IndexOf(currentModel.SelectedItem) == items.SelectedItemIndex &&
-                            currentModel.ArgumentIndex == items.ArgumentIndex &&
-                            currentModel.ArgumentCount == items.ArgumentCount &&
-                            currentModel.ArgumentName == items.ArgumentName)
+                            currentModel.Provider == list.Provider &&
+                            currentModel.GetCurrentSpanInSubjectBuffer(disconnectedBufferGraph.SubjectBufferSnapshot).Span.Start == list.ApplicableSpan.Start &&
+                            currentModel.Items.IndexOf(currentModel.SelectedItem) == list.SelectedItemIndex &&
+                            currentModel.ArgumentIndex == list.ArgumentIndex &&
+                            currentModel.ArgumentCount == list.ArgumentCount &&
+                            currentModel.ArgumentName == list.ArgumentName)
                         {
                             // The new model is the same as the current model.  Return the currentModel
                             // so we keep the active selection.
                             return currentModel;
                         }
 
-                        var selectedItem = GetSelectedItem(currentModel, items, provider, out bool userSelected);
+                        var selectedItem = GetSelectedItem(currentModel, list, list.Provider, out var userSelected);
 
-                        var model = new Model(disconnectedBufferGraph, items.ApplicableSpan, provider,
-                            items.Items, selectedItem, items.ArgumentIndex, items.ArgumentCount, items.ArgumentName,
+                        var model = new Model(disconnectedBufferGraph, list.ApplicableSpan, list.Provider,
+                            list.Items, selectedItem, list.ArgumentIndex, list.ArgumentCount, list.ArgumentName,
                             selectedParameter: 0, userSelected);
 
                         var syntaxFactsService = document.GetLanguageService<ISyntaxFactsService>();
@@ -175,65 +181,6 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
 
             private static bool CompareParts(TaggedText p1, TaggedText p2)
                 => p1.ToString() == p2.ToString();
-
-            private async Task<(SignatureHelpProvider provider, SignatureList items)> ComputeItemsAsync(
-                ImmutableArray<SignatureHelpProvider> providers,
-                SnapshotPoint caretPosition,
-                SignatureHelpTrigger triggerInfo,
-                Document document,
-                CancellationToken cancellationToken)
-            {
-                try
-                {
-                    SignatureHelpProvider bestProvider = null;
-                    SignatureList bestItems = null;
-
-                    // TODO(cyrusn): We're calling into extensions, we need to make ourselves resilient
-                    // to the extension crashing.
-                    foreach (var provider in providers)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-
-                        var currentItems = await provider.GetItemsAsync(document, caretPosition, triggerInfo, cancellationToken).ConfigureAwait(false);
-                        if (currentItems != null && currentItems.ApplicableSpan.IntersectsWith(caretPosition.Position))
-                        {
-                            // If another provider provides sig help items, then only take them if they
-                            // start after the last batch of items.  i.e. we want the set of items that
-                            // conceptually are closer to where the caret position is.  This way if you have:
-                            //
-                            //  Goo(new Bar($$
-                            //
-                            // Then invoking sig help will only show the items for "new Bar(" and not also
-                            // the items for "Goo(..."
-                            if (IsBetter(bestItems, currentItems.ApplicableSpan))
-                            {
-                                bestItems = currentItems;
-                                bestProvider = provider;
-                            }
-                        }
-                    }
-
-                    return (bestProvider, bestItems);
-                }
-                catch (Exception e) when (FatalError.ReportUnlessCanceled(e))
-                {
-                    throw ExceptionUtilities.Unreachable;
-                }
-            }
-
-            private bool IsBetter(SignatureList bestItems, TextSpan? currentTextSpan)
-            {
-                // If we have no best text span, then this span is definitely better.
-                if (bestItems == null)
-                {
-                    return true;
-                }
-
-                // Otherwise we want the one that is conceptually the innermost signature.  So it's
-                // only better if the distance from it to the caret position is less than the best
-                // one so far.
-                return currentTextSpan.Value.Start > bestItems.ApplicableSpan.Start;
-            }
         }
     }
 }

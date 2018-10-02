@@ -33,6 +33,11 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
 
         public Func<CancellationToken, IEnumerable<TaggedText>> DocumentationFactory { get; }
 
+        /// <summary>
+        /// Additional information attached to a signature help item by it creator.
+        /// </summary>
+        public ImmutableDictionary<string, string> Properties { get; }
+
         private static readonly Func<CancellationToken, IEnumerable<TaggedText>> s_emptyDocumentationFactory =
             _ => SpecializedCollections.EmptyEnumerable<TaggedText>();
 
@@ -43,7 +48,8 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
             IEnumerable<TaggedText> separatorParts,
             IEnumerable<TaggedText> suffixParts,
             IEnumerable<SignatureHelpParameter> parameters,
-            IEnumerable<TaggedText> descriptionParts)
+            IEnumerable<TaggedText> descriptionParts,
+            ImmutableDictionary<string, string> properties = null)
         {
             if (isVariadic && !parameters.Any())
             {
@@ -57,6 +63,7 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
             this.SuffixDisplayParts = suffixParts.ToImmutableArrayOrEmpty();
             this.Parameters = parameters.ToImmutableArrayOrEmpty();
             this.DescriptionParts = descriptionParts.ToImmutableArrayOrEmpty();
+            this.Properties = properties ?? ImmutableDictionary<string, string>.Empty;
         }
 
         // Constructor kept for back compat

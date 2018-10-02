@@ -32,7 +32,7 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
 
         protected abstract Task<SignatureList> GetItemsWorkerAsync(Document document, int position, SignatureHelpTrigger triggerInfo, CancellationToken cancellationToken);
 
-        protected static SignatureList CreateSignatureList(
+        protected SignatureList CreateSignatureList(
             ImmutableArray<SignatureHelpItem> items, TextSpan applicableSpan, SignatureHelpState state, int? selectedItem)
         {
             if (items == null || !items.Any() || state == null)
@@ -41,7 +41,7 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
             }
 
             (items, selectedItem) = Filter(items, state.ArgumentNames, selectedItem);
-            return new SignatureList(items, applicableSpan, state.ArgumentIndex, state.ArgumentCount, state.ArgumentName, selectedItem);
+            return new SignatureList(this, items, applicableSpan, state.ArgumentIndex, state.ArgumentCount, state.ArgumentName, selectedItem);
         }
 
         private static (ImmutableArray<SignatureHelpItem> items, int? selectedItem) Filter(ImmutableArray<SignatureHelpItem> items, IEnumerable<string> parameterNames, int? selectedItem)
@@ -219,6 +219,7 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
             }
 
             return new SignatureList(
+                provider: this,
                 finalItems.ToImmutableArray(), itemsForCurrentDocument.ApplicableSpan,
                 itemsForCurrentDocument.ArgumentIndex,
                 itemsForCurrentDocument.ArgumentCount,

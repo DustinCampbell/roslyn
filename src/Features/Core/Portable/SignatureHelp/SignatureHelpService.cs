@@ -1,5 +1,6 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Host;
@@ -52,6 +53,7 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
         /// <param name="document">The document that signature help is requested within.</param>
         /// <param name="caretPosition">The position of the caret after the triggering action.</param>
         /// <param name="trigger">The triggering action.</param>
+        /// <param name="roles">Optional set of roles associated with the editor state.</param>
         /// <param name="options">Optional options that override the default options.</param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
@@ -59,6 +61,7 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
             Document document,
             int caretPosition,
             SignatureHelpTrigger trigger = default,
+            ImmutableHashSet<string> roles = null,
             OptionSet options = null,
             CancellationToken cancellationToken = default);
     }

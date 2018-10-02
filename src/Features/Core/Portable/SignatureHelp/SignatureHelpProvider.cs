@@ -7,6 +7,13 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
 {
     internal abstract class SignatureHelpProvider
     {
+        internal string Name { get; }
+
+        protected SignatureHelpProvider()
+        {
+            this.Name = this.GetType().FullName;
+        }
+
         /// <summary>
         /// Returns true if the character might trigger completion, 
         /// e.g. '(' and ',' for method invocations 

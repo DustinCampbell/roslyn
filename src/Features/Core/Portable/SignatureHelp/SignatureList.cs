@@ -10,6 +10,8 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
 {
     internal sealed class SignatureList
     {
+        public SignatureHelpProvider Provider { get; }
+
         /// <summary>
         /// The <see cref="SignatureHelpItem"/>s to present to the user.
         /// </summary>
@@ -52,6 +54,7 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
         public int? SelectedItemIndex { get; }
 
         public SignatureList(
+            SignatureHelpProvider provider,
             ImmutableArray<SignatureHelpItem> items,
             TextSpan applicableSpan,
             int argumentIndex,
@@ -91,6 +94,7 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
                 Debug.Assert(selectedItem.Value >= 0, "actual item was not part of the final list");
             }
 
+            this.Provider = provider ?? throw new ArgumentNullException(nameof(provider));
             this.Items = distinctItems;
             this.ApplicableSpan = applicableSpan;
             this.ArgumentIndex = argumentIndex;
