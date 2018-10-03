@@ -16,20 +16,17 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
         {
             internal struct SignatureHelpSelection
             {
-                private readonly SignatureHelpItem _selectedItem;
-                private readonly bool _userSelected;
-                private readonly int? _selectedParameter;
+                public int? SelectedParameter { get; }
+                public SignatureHelpItem SelectedItem { get; }
+                public bool UserSelected { get; }
 
-                public SignatureHelpSelection(SignatureHelpItem selectedItem, bool userSelected, int? selectedParameter) : this()
+                public SignatureHelpSelection(SignatureHelpItem selectedItem, bool userSelected, int? selectedParameter)
+                    : this()
                 {
-                    _selectedItem = selectedItem;
-                    _userSelected = userSelected;
-                    _selectedParameter = selectedParameter;
+                    SelectedItem = selectedItem;
+                    UserSelected = userSelected;
+                    SelectedParameter = selectedParameter;
                 }
-
-                public int? SelectedParameter => _selectedParameter;
-                public SignatureHelpItem SelectedItem => _selectedItem;
-                public bool UserSelected => _userSelected;
             }
 
             internal static class DefaultSignatureHelpSelector

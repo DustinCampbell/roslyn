@@ -1,10 +1,7 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
 using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Editor.Shared.Extensions;
@@ -13,7 +10,6 @@ using Microsoft.CodeAnalysis.Internal.Log;
 using Microsoft.CodeAnalysis.LanguageServices;
 using Microsoft.CodeAnalysis.Shared.Extensions;
 using Microsoft.CodeAnalysis.SignatureHelp;
-using Microsoft.CodeAnalysis.Text;
 using Microsoft.VisualStudio.Text;
 using Roslyn.Utilities;
 
@@ -23,9 +19,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
     {
         internal partial class Session
         {
-            public void ComputeModel(
-                ImmutableArray<SignatureHelpProvider> providers,
-                SignatureHelpTrigger triggerInfo)
+            public void ComputeModel(SignatureHelpTrigger triggerInfo)
             {
                 AssertIsForeground();
 
@@ -74,7 +68,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
                             }
                         }
 
-                        var service = SignatureHelpService.GetService(document);
+                        var service = this.Controller.GetSignatureHelpService();
                         if (service == null)
                         {
                             // couldn't get a service, so we can't produce a model.
@@ -124,16 +118,6 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
                 {
                     throw ExceptionUtilities.Unreachable;
                 }
-            }
-
-            private static bool SequenceEquals(IEnumerable<string> s1, IEnumerable<string> s2)
-            {
-                if (s1 == s2)
-                {
-                    return true;
-                }
-
-                return s1 != null && s2 != null && s1.SequenceEqual(s2);
             }
 
             private static SignatureHelpItem GetSelectedItem(Model currentModel, SignatureList items, SignatureHelpProvider provider, out bool userSelected)

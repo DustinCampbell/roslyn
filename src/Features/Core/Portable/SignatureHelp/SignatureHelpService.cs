@@ -28,20 +28,36 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
         public abstract string Language { get; }
 
         /// <summary>
-        /// Returns true if the character recently inserted in the text should trigger SignatureHelp.
+        /// Returns true if the character recently inserted in the text should trigger Signature Help.
         /// </summary>
-        /// <param name="text">The document text to trigger signature help within.</param>
-        /// <param name="caretPosition">The position of the caret after the triggering action.</param>
-        /// <param name="trigger">The potential triggering action.</param>
+        /// <param name="ch">The character that was typed.</param>
+        /// <param name="roles">Optional set of roles associated with the editor state.</param>
         /// <param name="options">Optional options that override the default options.</param>
         /// <returns>
         /// This API uses <see cref="SourceText"/> rather than <see cref="Document"/> so implementations can be based on text,
         /// not syntax or semantic information.
         /// </returns>
-        public virtual bool ShouldTriggerSignatureHelp(
-            SourceText text,
-            int caretPosition,
-            SignatureHelpTrigger trigger,
+        public virtual bool IsTriggerCharacter(
+            char ch,
+            ImmutableHashSet<string> roles = null,
+            OptionSet options = null)
+        {
+            return false;
+        }
+
+        /// <summary>
+        /// Returns true if the character recently inserted in the text should trigger Signature Help.
+        /// </summary>
+        /// <param name="ch">The character that was typed.</param>
+        /// <param name="roles">Optional set of roles associated with the editor state.</param>
+        /// <param name="options">Optional options that override the default options.</param>
+        /// <returns>
+        /// This API uses <see cref="SourceText"/> rather than <see cref="Document"/> so implementations can be based on text,
+        /// not syntax or semantic information.
+        /// </returns>
+        public virtual bool IsRetriggerCharacter(
+            char ch,
+            ImmutableHashSet<string> roles = null,
             OptionSet options = null)
         {
             return false;

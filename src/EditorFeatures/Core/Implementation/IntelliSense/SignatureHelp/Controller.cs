@@ -1,11 +1,10 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis.Editor.Shared.Extensions;
 using Microsoft.CodeAnalysis.Editor.Shared.Utilities;
-using Microsoft.CodeAnalysis.Host.Mef;
+using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.Shared.TestHooks;
 using Microsoft.CodeAnalysis.SignatureHelp;
 using Microsoft.CodeAnalysis.Text;
@@ -15,7 +14,6 @@ using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Editor.Commanding;
 using Microsoft.VisualStudio.Text.Editor.Commanding.Commands;
-using Microsoft.VisualStudio.Utilities;
 
 namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHelp
 {
@@ -26,9 +24,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
     {
         private static readonly object s_controllerPropertyKey = new object();
 
-        private readonly IList<Lazy<SignatureHelpProvider, OrderableLanguageMetadata>> _allProviders;
-        private ImmutableArray<SignatureHelpProvider> _providers;
-        private IContentType _lastSeenContentType;
+        private readonly ImmutableHashSet<string> _roles;
 
         public string DisplayName => EditorFeaturesResources.Signature_Help;
 
@@ -38,33 +34,17 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
             ITextBuffer subjectBuffer,
             IIntelliSensePresenter<ISignatureHelpPresenterSession, ISignatureHelpSession> presenter,
             IAsynchronousOperationListener asyncListener,
-            IDocumentProvider documentProvider,
-            IList<Lazy<SignatureHelpProvider, OrderableLanguageMetadata>> allProviders)
+            IDocumentProvider documentProvider)
             : base(threadingContext, textView, subjectBuffer, presenter, asyncListener, documentProvider, "SignatureHelp")
         {
-            _allProviders = allProviders;
-        }
-
-        // For testing purposes.
-        internal Controller(
-            IThreadingContext threadingContext,
-            ITextView textView,
-            ITextBuffer subjectBuffer,
-            IIntelliSensePresenter<ISignatureHelpPresenterSession, ISignatureHelpSession> presenter,
-            IAsynchronousOperationListener asyncListener,
-            IDocumentProvider documentProvider,
-            IList<SignatureHelpProvider> providers)
-            : base(threadingContext, textView, subjectBuffer, presenter, asyncListener, documentProvider, "SignatureHelp")
-        {
-            _providers = providers.ToImmutableArray();
+            _roles = textView.Roles.ToImmutableHashSet();
         }
 
         internal static Controller GetInstance(
             IThreadingContext threadingContext,
             EditorCommandArgs args,
             IIntelliSensePresenter<ISignatureHelpPresenterSession, ISignatureHelpSession> presenter,
-            IAsynchronousOperationListener asyncListener,
-            IList<Lazy<SignatureHelpProvider, OrderableLanguageMetadata>> allProviders)
+            IAsynchronousOperationListener asyncListener)
         {
             var textView = args.TextView;
             var subjectBuffer = args.SubjectBuffer;
@@ -72,8 +52,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
                 (v, b) => new Controller(threadingContext, v, b,
                     presenter,
                     asyncListener,
-                    new DocumentProvider(threadingContext),
-                    allProviders));
+                    new DocumentProvider(threadingContext)));
         }
 
         private SnapshotPoint GetCaretPointInViewBuffer()
@@ -107,36 +86,33 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
             }
         }
 
-        private void StartSession(
-            ImmutableArray<SignatureHelpProvider> providers, SignatureHelpTrigger triggerInfo)
+        private void StartSession(SignatureHelpTrigger triggerInfo)
         {
             AssertIsForeground();
             VerifySessionIsInactive();
 
             this.sessionOpt = new Session(this, Presenter.CreateSession(TextView, SubjectBuffer, null));
-            this.sessionOpt.ComputeModel(providers, triggerInfo);
+            this.sessionOpt.ComputeModel(triggerInfo);
         }
 
-        private ImmutableArray<SignatureHelpProvider> GetProviders()
+        private SignatureHelpService GetSignatureHelpService()
         {
-            this.AssertIsForeground();
-
-            var snapshot = this.SubjectBuffer.CurrentSnapshot;
-            var currentContentType = snapshot.ContentType;
-
-            // if a file's content-type changes (e.g., File.cs is renamed to File.vb) after the list of providers has been populated, then we need to re-filter
-            if (_providers == null || currentContentType != _lastSeenContentType)
+            if (!Workspace.TryGetWorkspace(this.SubjectBuffer.AsTextContainer(), out var workspace))
             {
-                var document = snapshot.GetOpenDocumentInCurrentContextWithChanges();
-                if (document != null)
-                {
-                    _providers = document.Project.LanguageServices.WorkspaceServices.SelectMatchingExtensionValues(
-                        _allProviders, this.SubjectBuffer.ContentType).ToImmutableArray();
-                    _lastSeenContentType = currentContentType;
-                }
+                return null;
             }
 
-            return _providers;
+            return workspace.Services.GetLanguageServices(this.SubjectBuffer).GetService<SignatureHelpService>();
+        }
+
+        private OptionSet GetOptions()
+        {
+            if (!Workspace.TryGetWorkspace(this.SubjectBuffer.AsTextContainer(), out var workspace))
+            {
+                return null;
+            }
+
+            return workspace.Options;
         }
 
         private void Retrigger()
@@ -153,7 +129,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
                 return;
             }
 
-            sessionOpt.ComputeModel(GetProviders(), SignatureHelpTrigger.CreateUpdateTrigger());
+            sessionOpt.ComputeModel(SignatureHelpTrigger.CreateUpdateTrigger());
         }
     }
 }

@@ -184,5 +184,25 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
             // one so far.
             return currentTextSpan.Start > bestItems.ApplicableSpan.Start;
         }
+
+        public override bool IsTriggerCharacter(char ch, ImmutableHashSet<string> roles = null, OptionSet options = null)
+        {
+            options = options ?? Workspace.Options;
+
+            // TODO(DustinCa): options are not currently used. Should they be passed to providers for future use?
+
+            var providers = GetAllProviders(roles);
+            return providers.Any(p => p.IsTriggerCharacter(ch));
+        }
+
+        public override bool IsRetriggerCharacter(char ch, ImmutableHashSet<string> roles = null, OptionSet options = null)
+        {
+            options = options ?? Workspace.Options;
+
+            // TODO(DustinCa): options are not currently used. Should they be passed to providers for future use?
+
+            var providers = GetAllProviders(roles);
+            return providers.Any(p => p.IsRetriggerCharacter(ch));
+        }
     }
 }

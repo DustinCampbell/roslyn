@@ -10,7 +10,10 @@ namespace Microsoft.CodeAnalysis.SignatureHelp
 {
     internal sealed class SignatureList
     {
-        public SignatureHelpProvider Provider { get; }
+        /// <summary>
+        /// The <see cref="SignatureHelpProvider"/> that produced this <see cref="SignatureList"/>.
+        /// </summary>
+        internal SignatureHelpProvider Provider { get; }
 
         /// <summary>
         /// The <see cref="SignatureHelpItem"/>s to present to the user.

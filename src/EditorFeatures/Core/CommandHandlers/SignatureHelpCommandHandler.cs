@@ -33,7 +33,6 @@ namespace Microsoft.CodeAnalysis.Editor.CommandHandlers
     {
         private readonly IIntelliSensePresenter<ISignatureHelpPresenterSession, ISignatureHelpSession> _signatureHelpPresenter;
         private readonly IAsynchronousOperationListener _listener;
-        private readonly IList<Lazy<SignatureHelpProvider, OrderableLanguageMetadata>> _signatureHelpProviders;
 
         public string DisplayName => EditorFeaturesResources.Signature_Help;
 
@@ -41,12 +40,10 @@ namespace Microsoft.CodeAnalysis.Editor.CommandHandlers
         [Obsolete(MefConstruction.ImportingConstructorMessage, error: true)]
         public SignatureHelpCommandHandler(
             IThreadingContext threadingContext,
-            [ImportMany] IEnumerable<Lazy<SignatureHelpProvider, OrderableLanguageMetadata>> signatureHelpProviders,
             [ImportMany] IEnumerable<Lazy<IIntelliSensePresenter<ISignatureHelpPresenterSession, ISignatureHelpSession>, OrderableMetadata>> signatureHelpPresenters,
             IAsynchronousOperationListenerProvider listenerProvider)
             : base(threadingContext)
         {
-            _signatureHelpProviders = ExtensionOrderer.Order(signatureHelpProviders);
             _listener = listenerProvider.GetListener(FeatureAttribute.SignatureHelp);
             _signatureHelpPresenter = ExtensionOrderer.Order(signatureHelpPresenters).Select(lazy => lazy.Value).FirstOrDefault();
         }
@@ -74,7 +71,7 @@ namespace Microsoft.CodeAnalysis.Editor.CommandHandlers
             controller = Controller.GetInstance(
                 ThreadingContext,
                 args, _signatureHelpPresenter,
-                _listener, _signatureHelpProviders);
+                _listener);
 
             return true;
         }

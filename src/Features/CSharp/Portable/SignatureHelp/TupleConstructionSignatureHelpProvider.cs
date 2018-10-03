@@ -88,12 +88,12 @@ namespace Microsoft.CodeAnalysis.CSharp.SignatureHelp
             return result != null;
         }
 
-        public override Boolean IsRetriggerCharacter(Char ch)
+        public override bool IsRetriggerCharacter(char ch)
         {
             return ch == ')';
         }
 
-        public override Boolean IsTriggerCharacter(Char ch)
+        public override bool IsTriggerCharacter(char ch)
         {
             return ch == '(' || ch == ',';
         }

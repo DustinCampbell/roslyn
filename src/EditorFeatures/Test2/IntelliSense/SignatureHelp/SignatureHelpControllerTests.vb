@@ -188,9 +188,21 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
 
         <WpfFact, Trait(Traits.Feature, Traits.Features.SignatureHelp)>
         Public Sub CaretMoveWithActiveSessionShouldRecomputeModel()
-            Dim controller = CreateController(waitForPresentation:=True)
+            Dim controller = CreateController(waitForPresentation:=False, triggerSession:=False)
 
-            Mock.Get(GetMocks(controller).View.Object.Caret).Raise(Sub(c) AddHandler c.PositionChanged, Nothing, New CaretPositionChangedEventArgs(Nothing, Nothing, Nothing))
+            Dim mocks = GetMocks(controller)
+            Dim view = mocks.View
+            Dim buffer = mocks.Buffer
+            buffer.Insert(0, "Text")
+
+            DirectCast(controller, IChainedCommandHandler(Of InvokeSignatureHelpCommandArgs)).ExecuteCommand(
+                    New InvokeSignatureHelpCommandArgs(view, buffer), Nothing, TestCommandExecutionContext.Create())
+
+            controller.WaitForController()
+
+            ' Move the caret
+            view.Caret.MoveTo(view.Caret.Position.BufferPosition - 1)
+
             controller.WaitForController()
 
             ' GetItemsAsync is called once initially, and then once as a result of handling the PositionChanged event
@@ -239,22 +251,26 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
                                                  Optional provider As SignatureHelpProvider = Nothing,
                                                  Optional waitForPresentation As Boolean = False,
                                                  Optional triggerSession As Boolean = True) As Controller
-            Dim document As Document =
-                (Function()
-                     Dim workspace = TestWorkspace.CreateWorkspace(
-                         <Workspace>
-                             <Project Language="C#">
-                                 <Document>
-                                 </Document>
-                             </Project>
-                         </Workspace>)
-                     Return workspace.CurrentSolution.GetDocument(workspace.Documents.Single().Id)
-                 End Function)()
-            Dim threadingContext = DirectCast(document.Project.Solution.Workspace, TestWorkspace).GetService(Of IThreadingContext)
-            Dim bufferFactory As ITextBufferFactoryService = DirectCast(document.Project.Solution.Workspace, TestWorkspace).GetService(Of ITextBufferFactoryService)
-            Dim buffer = bufferFactory.CreateTextBuffer()
-            Dim view = CreateMockTextView(buffer)
+
+            Dim workspace = TestWorkspace.CreateWorkspace(
+                <Workspace>
+                    <Project Language="C#">
+                        <Document>
+                        </Document>
+                    </Project>
+                </Workspace>)
+
+            Dim documentId = workspace.Documents.Single().Id
+            Dim testDocument = workspace.GetTestDocument(documentId)
+            Dim document = workspace.CurrentSolution.GetDocument(documentId)
+
+            Dim threadingContext = workspace.GetService(Of IThreadingContext)
+
+            Dim textBuffer = testDocument.GetTextBuffer()
+            Dim textView = CType(testDocument.GetTextView(), ITextView)
+
             Dim asyncListener = New Mock(Of IAsynchronousOperationListener)
+
             If documentProvider Is Nothing Then
                 documentProvider = New Mock(Of IDocumentProvider)
                 documentProvider.Setup(Function(p) p.GetDocumentAsync(It.IsAny(Of ITextSnapshot), It.IsAny(Of CancellationToken))).Returns(Task.FromResult(document))
@@ -274,19 +290,18 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
 
             Dim controller = New Controller(
                 threadingContext,
-                view.Object,
-                buffer,
+                textView,
+                textBuffer,
                 presenter.Object,
                 asyncListener.Object,
-                documentProvider.Object,
-                {provider})
+                documentProvider.Object)
 
             Dim service = DirectCast(SignatureHelpService.GetService(document), SignatureHelpServiceWithProviders)
             service.SetTestProviders({provider})
 
             s_controllerMocksMap.Add(controller, New ControllerMocks(
-                      view,
-                      buffer,
+                      textView,
+                      textBuffer,
                       presenter,
                       presenterSession,
                       asyncListener,
@@ -295,7 +310,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
 
             If triggerSession Then
                 DirectCast(controller, IChainedCommandHandler(Of InvokeSignatureHelpCommandArgs)).ExecuteCommand(
-                    New InvokeSignatureHelpCommandArgs(view.Object, buffer), Nothing, TestCommandExecutionContext.Create())
+                    New InvokeSignatureHelpCommandArgs(textView, textBuffer), Nothing, TestCommandExecutionContext.Create())
                 If waitForPresentation Then
                     controller.WaitForController()
                 End If
@@ -353,7 +368,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
         End Function
 
         Private Class ControllerMocks
-            Public ReadOnly View As Mock(Of ITextView)
+            Public ReadOnly View As ITextView
             Public ReadOnly Buffer As ITextBuffer
             Public ReadOnly Presenter As Mock(Of IIntelliSensePresenter(Of ISignatureHelpPresenterSession, ISignatureHelpSession))
             Public ReadOnly PresenterSession As Mock(Of ISignatureHelpPresenterSession)
@@ -361,7 +376,7 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
             Public ReadOnly DocumentProvider As Mock(Of IDocumentProvider)
             Public ReadOnly Provider As MockSignatureHelpProvider
 
-            Public Sub New(view As Mock(Of ITextView),
+            Public Sub New(view As ITextView,
                            buffer As ITextBuffer,
                            presenter As Mock(Of IIntelliSensePresenter(Of ISignatureHelpPresenterSession, ISignatureHelpSession)),
                            presenterSession As Mock(Of ISignatureHelpPresenterSession),

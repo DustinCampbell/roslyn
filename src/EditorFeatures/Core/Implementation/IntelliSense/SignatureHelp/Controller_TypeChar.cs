@@ -1,11 +1,8 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
 using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
 using Microsoft.CodeAnalysis.Editor.Shared.Extensions;
-using Microsoft.CodeAnalysis.PooledObjects;
+using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.SignatureHelp;
 using Microsoft.VisualStudio.Commanding;
 using Microsoft.VisualStudio.Text.Editor.Commanding.Commands;
@@ -27,13 +24,6 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
         {
             AssertIsForeground();
 
-            var allProviders = GetProviders();
-            if (allProviders == null)
-            {
-                nextHandler();
-                return;
-            }
-
             // Note: while we're doing this, we don't want to hear about buffer changes (since we
             // know they're going to happen).  So we disconnect and reconnect to the event
             // afterwards.  That way we can hear about changes to the buffer that don't happen
@@ -48,6 +38,8 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
                 this.TextView.TextBuffer.PostChanged += OnTextViewBufferPostChanged;
             }
 
+            var typedChar = args.TypedChar;
+
             // We only want to process typechar if it is a normal typechar and no one else is
             // involved.  i.e. if there was a typechar, but someone processed it and moved the caret
             // somewhere else then we don't want signature help.  Also, if a character was typed but
@@ -59,7 +51,7 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
             // proceed.  For example, if the user types "WriteL(", then that will involve two text
             // changes as completion commits that out to "WriteLine(".  But we still want to provide
             // sig help in this case.
-            if (this.TextView.TypeCharWasHandledStrangely(this.SubjectBuffer, args.TypedChar))
+            if (this.TextView.TypeCharWasHandledStrangely(this.SubjectBuffer, typedChar))
             {
                 // If we were computing anything, we stop.  We only want to process a typechar
                 // if it was a normal character.
@@ -67,26 +59,24 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
                 return;
             }
 
-            // Separate the sig help providers into two buckets; one bucket for those that were triggered
-            // by the typed character, and those that weren't.  To keep our queries to a minimum, we first
-            // check with the textually triggered providers.  If none of those produced any sig help items
-            // then we query the other providers to see if they can produce anything viable.  This takes
-            // care of cases where the filtered set of providers didn't provide anything but one of the
-            // other providers could still be valid, but doesn't explicitly treat the typed character as
-            // a trigger character.
-            var (textuallyTriggeredProviders, untriggeredProviders) = FilterProviders(allProviders, args.TypedChar);
-            var trigger = SignatureHelpTrigger.CreateInsertionTrigger(args.TypedChar);
+            var signatureHelpService = GetSignatureHelpService();
+            if (signatureHelpService == null)
+            {
+                return;
+            }
+
+            var options = GetOptions();
 
             if (!IsSessionActive)
             {
                 // No computation at all.  If this is not a trigger character, we just ignore it and
                 // stay in this state.  Otherwise, if it's a trigger character, start up a new
                 // computation and start computing the model in the background.
-                if (textuallyTriggeredProviders.Any())
+                if (IsTriggerCharacter(signatureHelpService, typedChar, options))
                 {
                     // First create the session that represents that we now have a potential 
                     // signature help list. Then tell it to start computing.
-                    StartSession(textuallyTriggeredProviders, trigger);
+                    StartSession(SignatureHelpTrigger.CreateInsertionTrigger(typedChar));
                     return;
                 }
                 else
@@ -98,55 +88,38 @@ namespace Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense.SignatureHel
             else
             {
                 var computed = false;
-                if (allProviders.Any(p => p.IsRetriggerCharacter(args.TypedChar)))
+                if (IsRetriggerCharacter(signatureHelpService, typedChar, options))
                 {
                     // The user typed a character that might close the scope of the current model.
                     // In this case, we should requery all providers.
                     //
                     // e.g.     Math.Max(Math.Min(1,2)$$
-                    sessionOpt.ComputeModel(allProviders, SignatureHelpTrigger.CreateUpdateTrigger(trigger.Character));
+                    sessionOpt.ComputeModel(SignatureHelpTrigger.CreateUpdateTrigger(typedChar));
                     computed = true;
                 }
 
-                if (textuallyTriggeredProviders.Any())
+                if (IsTriggerCharacter(signatureHelpService, typedChar, options))
                 {
                     // The character typed was something like "(".  It can both filter a list if
                     // it was in a string like: Goo(bar, "(
                     //
                     // Or it can trigger a new list. Ask the computation to compute again.
-                    sessionOpt.ComputeModel(
-                        textuallyTriggeredProviders.Concat(untriggeredProviders), trigger);
+                    sessionOpt.ComputeModel(SignatureHelpTrigger.CreateInsertionTrigger(typedChar));
                     computed = true;
                 }
 
                 if (!computed)
                 {
                     // A character was typed and we haven't updated our model; do so now.
-                    sessionOpt.ComputeModel(allProviders, SignatureHelpTrigger.CreateUpdateTrigger());
+                    sessionOpt.ComputeModel(SignatureHelpTrigger.CreateUpdateTrigger());
                 }
             }
         }
 
-        private (ImmutableArray<SignatureHelpProvider> matched, ImmutableArray<SignatureHelpProvider> unmatched) FilterProviders(
-            ImmutableArray<SignatureHelpProvider> providers, char ch)
-        {
-            AssertIsForeground();
+        private bool IsTriggerCharacter(SignatureHelpService signatureHelpService, char typedChar, OptionSet options)
+            => signatureHelpService.IsTriggerCharacter(typedChar, _roles, options);
 
-            var matchedProviders = ArrayBuilder<SignatureHelpProvider>.GetInstance();
-            var unmatchedProviders = ArrayBuilder<SignatureHelpProvider>.GetInstance();
-            foreach (var provider in providers)
-            {
-                if (provider.IsTriggerCharacter(ch))
-                {
-                    matchedProviders.Add(provider);
-                }
-                else
-                {
-                    unmatchedProviders.Add(provider);
-                }
-            }
-
-            return (matchedProviders.ToImmutableAndFree(), unmatchedProviders.ToImmutableAndFree());
-        }
+        private bool IsRetriggerCharacter(SignatureHelpService signatureHelpService, char typedChar, OptionSet options)
+            => signatureHelpService.IsRetriggerCharacter(typedChar, _roles, options);
     }
 }
