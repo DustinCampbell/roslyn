@@ -1,7 +1,6 @@
 ﻿' Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
 Imports System.Collections.Immutable
-Imports System.Runtime.CompilerServices
 Imports System.Threading
 Imports System.Windows.Threading
 Imports Microsoft.CodeAnalysis.Editor.Implementation.IntelliSense
@@ -25,46 +24,66 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
     Public Class SignatureHelpControllerTests
         <WpfFact, Trait(Traits.Feature, Traits.Features.SignatureHelp)>
         Public Sub InvokeSignatureHelpWithoutDocumentShouldNotStartNewSession()
-            Dim emptyProvider = New Mock(Of IDocumentProvider)
-            emptyProvider.Setup(Function(p) p.GetDocumentAsync(It.IsAny(Of ITextSnapshot), It.IsAny(Of CancellationToken))).Returns(Task.FromResult(DirectCast(Nothing, Document)))
-            Dim controller As Controller = CreateController(documentProvider:=emptyProvider)
-            controller.WaitForController()
+            Dim emptyDocumentProvider = New Mock(Of IDocumentProvider)
+            emptyDocumentProvider _
+                .Setup(Function(p) p.GetDocumentAsync(It.IsAny(Of ITextSnapshot), It.IsAny(Of CancellationToken))) _
+                .Returns(Task.FromResult(Of Document)(Nothing))
 
-            Assert.Equal(0, GetMocks(controller).Provider.GetItemsCount)
+            Dim env = TestEnvironment.Create(documentProvider:=emptyDocumentProvider)
+
+            env.InvokeSignatureHelp()
+
+            Assert.Equal(0, env.GetItemAsyncCallCount)
         End Sub
 
         <WpfFact, Trait(Traits.Feature, Traits.Features.SignatureHelp)>
         Public Sub InvokeSignatureHelpWithDocumentShouldStartNewSession()
-            Dim controller = CreateController()
+            Dim env = TestEnvironment.Create()
 
-            GetMocks(controller).Presenter.Verify(Function(p) p.CreateSession(It.IsAny(Of ITextView), It.IsAny(Of ITextBuffer), It.IsAny(Of ISignatureHelpSession)), Times.Once)
+            env.InvokeSignatureHelp(waitForController:=False)
+
+            env.PresenterMock.Verify(
+                Function(p) p.CreateSession(It.IsAny(Of ITextView), It.IsAny(Of ITextBuffer), It.IsAny(Of ISignatureHelpSession)),
+                Times.Once)
         End Sub
 
         <WpfFact, Trait(Traits.Feature, Traits.Features.SignatureHelp)>
         Public Sub EmptyModelShouldStopSession()
-            Dim controller = CreateController(items:=ImmutableArray(Of SignatureHelpItem).Empty, waitForPresentation:=True)
+            Dim env = TestEnvironment.Create(signatureHelpItems:=ImmutableArray(Of SignatureHelpItem).Empty)
 
-            GetMocks(controller).PresenterSession.Verify(Sub(p) p.Dismiss(), Times.Once)
+            env.InvokeSignatureHelp()
+
+            env.PresenterSessionMock.Verify(
+                Sub(p) p.Dismiss(),
+                Times.Once)
         End Sub
 
         <WpfFact, Trait(Traits.Feature, Traits.Features.SignatureHelp)>
         Public Sub UpKeyShouldDismissWhenThereIsOnlyOneItem()
-            Dim controller = CreateController(items:=CreateItems(1), waitForPresentation:=True)
+            Dim env = TestEnvironment.Create(signatureHelpItems:=CreateItems(1))
 
-            Dim handled = controller.TryHandleUpKey()
+            env.InvokeSignatureHelp()
 
+            Dim handled = env.Controller.TryHandleUpKey()
             Assert.False(handled)
-            GetMocks(controller).PresenterSession.Verify(Sub(p) p.Dismiss(), Times.Once)
+
+            env.PresenterSessionMock.Verify(
+                Sub(p) p.Dismiss(),
+                Times.Once)
         End Sub
 
         <WpfFact, Trait(Traits.Feature, Traits.Features.SignatureHelp)>
         Public Sub UpKeyShouldNavigateWhenThereAreMultipleItems()
-            Dim controller = CreateController(items:=CreateItems(2), waitForPresentation:=True)
+            Dim env = TestEnvironment.Create(signatureHelpItems:=CreateItems(2))
 
-            Dim handled = controller.TryHandleUpKey()
+            env.InvokeSignatureHelp()
 
+            Dim handled = env.Controller.TryHandleUpKey()
             Assert.True(handled)
-            GetMocks(controller).PresenterSession.Verify(Sub(p) p.SelectPreviousItem(), Times.Once)
+
+            env.PresenterSessionMock.Verify(
+                Sub(p) p.SelectPreviousItem(),
+                Times.Once)
         End Sub
 
         <WpfFact, Trait(Traits.Feature, Traits.Features.SignatureHelp)>
@@ -72,57 +91,67 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
         Public Sub UpKeyShouldNotCrashWhenSessionIsDismissed()
             ' Create a provider that will return an empty state when queried the second time
             Dim slowProvider = New Mock(Of SignatureHelpProvider)
-            slowProvider.Setup(Function(p) p.GetItemsAsync(It.IsAny(Of Document), It.IsAny(Of Integer), It.IsAny(Of SignatureHelpTrigger), It.IsAny(Of CancellationToken))) _
+            slowProvider _
+                .Setup(Function(p) p.GetItemsAsync(It.IsAny(Of Document), It.IsAny(Of Integer), It.IsAny(Of SignatureHelpTrigger), It.IsAny(Of CancellationToken))) _
                 .Returns(Task.FromResult(New SignatureList(slowProvider.Object, CreateItems(2), TextSpan.FromBounds(0, 0), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing)))
-            Dim controller = CreateController(provider:=slowProvider.Object, waitForPresentation:=True)
+
+            Dim env = TestEnvironment.Create(signatureHelpProvider:=slowProvider.Object)
+
+            env.InvokeSignatureHelp()
 
             ' Now force an update to the model that will result in stopping the session
-            slowProvider.Setup(Function(p) p.GetItemsAsync(It.IsAny(Of Document), It.IsAny(Of Integer), It.IsAny(Of SignatureHelpTrigger), It.IsAny(Of CancellationToken))) _
+            slowProvider _
+                .Setup(Function(p) p.GetItemsAsync(It.IsAny(Of Document), It.IsAny(Of Integer), It.IsAny(Of SignatureHelpTrigger), It.IsAny(Of CancellationToken))) _
                 .Returns(Task.FromResult(Of SignatureList)(Nothing))
 
-            DirectCast(controller, IChainedCommandHandler(Of TypeCharCommandArgs)).ExecuteCommand(
-                New TypeCharCommandArgs(CreateMock(Of ITextView), CreateMock(Of ITextBuffer), " "c),
-                Sub() GetMocks(controller).Buffer.Insert(0, " "), TestCommandExecutionContext.Create())
+            env.TypeChar(" "c)
 
-            Dim handled = controller.TryHandleUpKey() ' this will block on the model being updated which should dismiss the session
+            Dim handled = env.Controller.TryHandleUpKey() ' this will block on the model being updated which should dismiss the session
 
             Assert.False(handled)
-            GetMocks(controller).PresenterSession.Verify(Sub(p) p.Dismiss(), Times.Once)
+            env.PresenterSessionMock.Verify(
+                Sub(p) p.Dismiss(),
+                Times.Once)
         End Sub
 
         <WpfFact, Trait(Traits.Feature, Traits.Features.SignatureHelp)>
         <WorkItem(179726, "https://devdiv.visualstudio.com/DefaultCollection/DevDiv/_workItems?id=179726&_a=edit")>
         Public Sub DownKeyShouldNotBlockOnModelComputation()
-            Dim mre = New ManualResetEvent(False)
-            Dim controller = CreateController(items:=CreateItems(2), waitForPresentation:=False)
             Dim slowProvider = New Mock(Of SignatureHelpProvider)
-            slowProvider.Setup(Function(p) p.GetItemsAsync(It.IsAny(Of Document), It.IsAny(Of Integer), It.IsAny(Of SignatureHelpTrigger), It.IsAny(Of CancellationToken))) _
+            Dim resetEvent = New ManualResetEvent(False)
+
+            slowProvider _
+                .Setup(Function(p) p.GetItemsAsync(It.IsAny(Of Document), It.IsAny(Of Integer), It.IsAny(Of SignatureHelpTrigger), It.IsAny(Of CancellationToken))) _
                 .Returns(Function()
-                             mre.WaitOne()
+                             resetEvent.WaitOne()
                              Return Task.FromResult(New SignatureList(slowProvider.Object, CreateItems(2), TextSpan.FromBounds(0, 0), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing))
                          End Function)
 
+            Dim env = TestEnvironment.Create(signatureHelpProvider:=slowProvider.Object)
 
-            Dim handled = controller.TryHandleDownKey()
+            env.InvokeSignatureHelp(waitForController:=False)
 
+            Dim handled = env.Controller.TryHandleDownKey()
             Assert.False(handled)
         End Sub
 
         <WpfFact, Trait(Traits.Feature, Traits.Features.SignatureHelp)>
         <WorkItem(179726, "https://devdiv.visualstudio.com/DefaultCollection/DevDiv/_workItems?id=179726&_a=edit")>
         Public Sub UpKeyShouldNotBlockOnModelComputation()
-            Dim mre = New ManualResetEvent(False)
-            Dim controller = CreateController(items:=CreateItems(2), waitForPresentation:=False)
             Dim slowProvider = New Mock(Of SignatureHelpProvider)
-            slowProvider.Setup(Function(p) p.GetItemsAsync(It.IsAny(Of Document), It.IsAny(Of Integer), It.IsAny(Of SignatureHelpTrigger), It.IsAny(Of CancellationToken))) _
+            Dim resetEvent = New ManualResetEvent(False)
+
+            slowProvider _
+                .Setup(Function(p) p.GetItemsAsync(It.IsAny(Of Document), It.IsAny(Of Integer), It.IsAny(Of SignatureHelpTrigger), It.IsAny(Of CancellationToken))) _
                 .Returns(Function()
-                             mre.WaitOne()
+                             resetEvent.WaitOne()
                              Return Task.FromResult(New SignatureList(slowProvider.Object, CreateItems(2), TextSpan.FromBounds(0, 0), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing))
                          End Function)
 
+            Dim env = TestEnvironment.Create(signatureHelpProvider:=slowProvider.Object)
+            env.InvokeSignatureHelp(waitForController:=False)
 
-            Dim handled = controller.TryHandleUpKey()
-
+            Dim handled = env.Controller.TryHandleUpKey()
             Assert.False(handled)
         End Sub
 
@@ -131,193 +160,135 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
         Public Async Function UpKeyShouldBlockOnRecomputationAfterPresentation() As Task
             Dim dispatcher = Windows.Threading.Dispatcher.CurrentDispatcher
 
-            Dim worker = Async Function()
-                             Dim slowProvider = New Mock(Of SignatureHelpProvider)
-                             slowProvider.Setup(Function(p) p.GetItemsAsync(It.IsAny(Of Document), It.IsAny(Of Integer), It.IsAny(Of SignatureHelpTrigger), It.IsAny(Of CancellationToken))) _
-                                 .Returns(Task.FromResult(New SignatureList(slowProvider.Object, CreateItems(2), TextSpan.FromBounds(0, 0), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing)))
+            Dim slowProvider = New Mock(Of SignatureHelpProvider)
+            slowProvider _
+                .Setup(Function(p) p.GetItemsAsync(It.IsAny(Of Document), It.IsAny(Of Integer), It.IsAny(Of SignatureHelpTrigger), It.IsAny(Of CancellationToken))) _
+                .Returns(Task.FromResult(New SignatureList(slowProvider.Object, CreateItems(2), TextSpan.FromBounds(0, 0), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing)))
 
-                             Dim controller = dispatcher.Invoke(Function() CreateController(provider:=slowProvider.Object, waitForPresentation:=True))
+            Dim env = dispatcher.Invoke(
+               Function()
+                   Dim e = TestEnvironment.Create(signatureHelpProvider:=slowProvider.Object)
+                   ' Ensure that signature help is displaying
+                   e.InvokeSignatureHelp()
+                   Return e
+               End Function)
 
-                             ' Update session so that providers are requeried.
-                             ' SlowProvider now blocks on the checkpoint's task.
-                             Dim checkpoint = New Checkpoint()
-                             slowProvider.Setup(Function(p) p.GetItemsAsync(It.IsAny(Of Document), It.IsAny(Of Integer), It.IsAny(Of SignatureHelpTrigger), It.IsAny(Of CancellationToken))) _
-                                 .Returns(Function()
-                                              checkpoint.Task.Wait()
-                                              Return Task.FromResult(New SignatureList(slowProvider.Object, CreateItems(2), TextSpan.FromBounds(0, 2), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing))
-                                          End Function)
+            ' Update session so that providers are requeried.
+            ' SlowProvider now blocks on the checkpoint's task.
+            Dim checkpoint = New Checkpoint()
+            slowProvider _
+                .Setup(Function(p) p.GetItemsAsync(It.IsAny(Of Document), It.IsAny(Of Integer), It.IsAny(Of SignatureHelpTrigger), It.IsAny(Of CancellationToken))) _
+                .Returns(Function()
+                             checkpoint.Task.Wait()
+                             Return Task.FromResult(New SignatureList(slowProvider.Object, CreateItems(2), TextSpan.FromBounds(0, 2), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing))
+                         End Function)
 
-                             dispatcher.Invoke(Sub() DirectCast(controller, IChainedCommandHandler(Of TypeCharCommandArgs)).ExecuteCommand(
-                                 New TypeCharCommandArgs(CreateMock(Of ITextView), CreateMock(Of ITextBuffer), " "c),
-                                 Sub() GetMocks(controller).Buffer.Insert(0, " "), TestCommandExecutionContext.Create()))
+            dispatcher.Invoke(Sub() env.TypeChar(" "c))
 
-                             Dim handled = dispatcher.InvokeAsync(Function() controller.TryHandleUpKey()) ' Send the controller an up key, which should block on the computation
-                             checkpoint.Release() ' Allow slowprovider to finish
-                             Await handled.Task.ConfigureAwait(False)
+            Dim handled = dispatcher.InvokeAsync(Function() env.Controller.TryHandleUpKey()) ' Send the controller an up key, which should block on the computation
+            checkpoint.Release() ' Allow slowprovider to finish
+            Await handled.Task.ConfigureAwait(False)
 
-                             ' We expect 2 calls to the presenter (because we had an existing presentation session when we started the second computation).
-                             Assert.True(handled.Result)
-                             GetMocks(controller).PresenterSession.Verify(Sub(p) p.PresentItems(It.IsAny(Of ITrackingSpan), It.IsAny(Of IList(Of SignatureHelpItem)),
-                                                                                                It.IsAny(Of SignatureHelpItem), It.IsAny(Of Integer?)), Times.Exactly(2))
-                         End Function
-
-            Await worker().ConfigureAwait(False)
+            ' We expect 2 calls to the presenter (because we had an existing presentation session when we started the second computation).
+            Assert.True(handled.Result)
+            env.PresenterSessionMock.Verify(
+               Sub(p) p.PresentItems(It.IsAny(Of ITrackingSpan), It.IsAny(Of IList(Of SignatureHelpItem)), It.IsAny(Of SignatureHelpItem), It.IsAny(Of Integer?)),
+               Times.Exactly(2))
         End Function
 
         <WpfFact, Trait(Traits.Feature, Traits.Features.SignatureHelp)>
         Public Sub DownKeyShouldNavigateWhenThereAreMultipleItems()
-            Dim controller = CreateController(items:=CreateItems(2), waitForPresentation:=True)
+            Dim items = CreateItems(2)
 
-            Dim handled = controller.TryHandleDownKey()
+            ' Create test environment with two unique signature help items
+            Dim env = TestEnvironment.Create(signatureHelpItems:=items)
 
+            ' Ensure that signature help is displaying
+            env.InvokeSignatureHelp()
+
+            Dim handled = env.Controller.TryHandleDownKey()
             Assert.True(handled)
-            GetMocks(controller).PresenterSession.Verify(Sub(p) p.SelectNextItem(), Times.Once)
+
+            env.PresenterSessionMock.Verify(
+                Sub(p) p.SelectNextItem(),
+                Times.Once)
         End Sub
 
         <WpfFact, Trait(Traits.Feature, Traits.Features.SignatureHelp)>
         <WorkItem(1181, "https://github.com/dotnet/roslyn/issues/1181")>
         Public Sub UpAndDownKeysShouldStillNavigateWhenDuplicateItemsAreFiltered()
             Dim item = CreateItems(1).Single()
-            Dim controller = CreateController(items:=ImmutableArray.Create(item, item), waitForPresentation:=True)
+            Dim items = ImmutableArray.Create(item, item)
 
-            Dim handled = controller.TryHandleUpKey()
+            ' Create test environment with two duplicate signature help items
+            Dim env = TestEnvironment.Create(signatureHelpItems:=items)
+
+            ' Ensure that signature help is displaying
+            env.InvokeSignatureHelp()
+
+            Dim handled = env.Controller.TryHandleUpKey()
 
             Assert.False(handled)
-            GetMocks(controller).PresenterSession.Verify(Sub(p) p.Dismiss(), Times.Once)
+            env.PresenterSessionMock.Verify(
+                Sub(p) p.Dismiss(),
+                Times.Once)
         End Sub
 
         <WpfFact, Trait(Traits.Feature, Traits.Features.SignatureHelp)>
         Public Sub CaretMoveWithActiveSessionShouldRecomputeModel()
-            Dim controller = CreateController(waitForPresentation:=False, triggerSession:=False)
+            Dim env = TestEnvironment.Create()
 
-            Dim mocks = GetMocks(controller)
-            Dim view = mocks.View
-            Dim buffer = mocks.Buffer
-            buffer.Insert(0, "Text")
+            ' Ensure the buffer has a bit of text in it
+            env.TextBuffer.Insert(0, "Text")
 
-            DirectCast(controller, IChainedCommandHandler(Of InvokeSignatureHelpCommandArgs)).ExecuteCommand(
-                    New InvokeSignatureHelpCommandArgs(view, buffer), Nothing, TestCommandExecutionContext.Create())
+            ' Ensure that signature help is displaying
+            env.InvokeSignatureHelp()
 
-            controller.WaitForController()
+            ' SignatureHelpProvider.GetItemsAsync should be called once initially
+            Assert.Equal(1, env.GetItemAsyncCallCount)
 
-            ' Move the caret
-            view.Caret.MoveTo(view.Caret.Position.BufferPosition - 1)
+            ' Move the caret back one character
+            env.TextView.Caret.MoveTo(env.TextView.Caret.Position.BufferPosition - 1)
 
-            controller.WaitForController()
+            env.Controller.WaitForController()
 
-            ' GetItemsAsync is called once initially, and then once as a result of handling the PositionChanged event
-            Assert.Equal(2, GetMocks(controller).Provider.GetItemsCount)
+            ' SignatureHelpProvider.GetItemsAsync should be called again as part of
+            ' retriggering when handling the PositionChanged event.
+            Assert.Equal(2, env.GetItemAsyncCallCount)
         End Sub
 
         <WpfFact, Trait(Traits.Feature, Traits.Features.SignatureHelp)>
         Public Sub RetriggerActiveSessionOnClosingBrace()
-            Dim controller = CreateController(waitForPresentation:=True)
+            Dim env = TestEnvironment.Create()
 
-            Dim commandHandler = DirectCast(controller, IChainedCommandHandler(Of TypeCharCommandArgs))
+            ' Ensure that signature help is displaying
+            env.InvokeSignatureHelp()
 
-            commandHandler.ExecuteCommand(
-                args:=New TypeCharCommandArgs(CreateMock(Of ITextView), CreateMock(Of ITextBuffer), ")"c),
-                nextCommandHandler:=Sub() GetMocks(controller).Buffer.Insert(0, ")"),
-                executionContext:=TestCommandExecutionContext.Create())
+            ' SignatureHelpProvider.GetItemsAsync should be called once initially
+            Assert.Equal(1, env.GetItemAsyncCallCount)
 
-            controller.WaitForController()
+            ' Type a retrigger character
+            env.TypeChar(")"c)
 
-            ' GetItemsAsync is called once initially, and then once as a result of handling the typechar command
-            Assert.Equal(2, GetMocks(controller).Provider.GetItemsCount)
+            env.Controller.WaitForController()
+
+            ' SignatureHelpProvider.GetItemsAsync should be called again as part of
+            ' retriggering when handling the typed character.
+            Assert.Equal(2, env.GetItemAsyncCallCount)
         End Sub
 
         <WpfFact, Trait(Traits.Feature, Traits.Features.SignatureHelp)>
         <WorkItem(959116, "http://vstfdevdiv:8080/DevDiv2/DevDiv/_workitems/edit/959116")>
         Public Sub TypingNonTriggerCharacterShouldNotRequestDocument()
-            Dim controller = CreateController(triggerSession:=False)
+            Dim env = TestEnvironment.Create()
 
-            DirectCast(controller, IChainedCommandHandler(Of TypeCharCommandArgs)).ExecuteCommand(
-                New TypeCharCommandArgs(CreateMock(Of ITextView), CreateMock(Of ITextBuffer), "a"c),
-                Sub() GetMocks(controller).Buffer.Insert(0, "a"), TestCommandExecutionContext.Create())
+            ' Type a character that is not a trigger character
+            env.TypeChar("a"c)
 
-            GetMocks(controller).DocumentProvider.Verify(Function(p) p.GetDocumentAsync(It.IsAny(Of ITextSnapshot), It.IsAny(Of CancellationToken)), Times.Never)
+            env.DocumentProviderMock.Verify(
+                Function(p) p.GetDocumentAsync(It.IsAny(Of ITextSnapshot), It.IsAny(Of CancellationToken)),
+                Times.Never)
         End Sub
-
-        Private Shared ReadOnly s_controllerMocksMap As New ConditionalWeakTable(Of Controller, ControllerMocks)
-        Private Shared Function GetMocks(controller As Controller) As ControllerMocks
-            Dim result As ControllerMocks = Nothing
-            Roslyn.Utilities.Contract.ThrowIfFalse(s_controllerMocksMap.TryGetValue(controller, result))
-            Return result
-        End Function
-
-        Private Shared Function CreateController(Optional documentProvider As Mock(Of IDocumentProvider) = Nothing,
-                                                 Optional presenterSession As Mock(Of ISignatureHelpPresenterSession) = Nothing,
-                                                 Optional items As ImmutableArray(Of SignatureHelpItem) = Nothing,
-                                                 Optional provider As SignatureHelpProvider = Nothing,
-                                                 Optional waitForPresentation As Boolean = False,
-                                                 Optional triggerSession As Boolean = True) As Controller
-
-            Dim workspace = TestWorkspace.CreateWorkspace(
-                <Workspace>
-                    <Project Language="C#">
-                        <Document>
-                        </Document>
-                    </Project>
-                </Workspace>)
-
-            Dim documentId = workspace.Documents.Single().Id
-            Dim testDocument = workspace.GetTestDocument(documentId)
-            Dim document = workspace.CurrentSolution.GetDocument(documentId)
-
-            Dim threadingContext = workspace.GetService(Of IThreadingContext)
-
-            Dim textBuffer = testDocument.GetTextBuffer()
-            Dim textView = CType(testDocument.GetTextView(), ITextView)
-
-            Dim asyncListener = New Mock(Of IAsynchronousOperationListener)
-
-            If documentProvider Is Nothing Then
-                documentProvider = New Mock(Of IDocumentProvider)
-                documentProvider.Setup(Function(p) p.GetDocumentAsync(It.IsAny(Of ITextSnapshot), It.IsAny(Of CancellationToken))).Returns(Task.FromResult(document))
-                documentProvider.Setup(Function(p) p.GetOpenDocumentInCurrentContextWithChanges(It.IsAny(Of ITextSnapshot))).Returns(document)
-            End If
-
-            If provider Is Nothing Then
-                items = If(items.IsDefault, CreateItems(1), items)
-                provider = New MockSignatureHelpProvider(items)
-            End If
-
-            Dim presenter = New Mock(Of IIntelliSensePresenter(Of ISignatureHelpPresenterSession, ISignatureHelpSession)) With {.DefaultValue = DefaultValue.Mock}
-            presenterSession = If(presenterSession, New Mock(Of ISignatureHelpPresenterSession) With {.DefaultValue = DefaultValue.Mock})
-            presenter.Setup(Function(p) p.CreateSession(It.IsAny(Of ITextView), It.IsAny(Of ITextBuffer), It.IsAny(Of ISignatureHelpSession))).Returns(presenterSession.Object)
-            presenterSession.Setup(Sub(p) p.PresentItems(It.IsAny(Of ITrackingSpan), It.IsAny(Of IList(Of SignatureHelpItem)), It.IsAny(Of SignatureHelpItem), It.IsAny(Of Integer?))) _
-                .Callback(Sub() presenterSession.SetupGet(Function(p) p.EditorSessionIsActive).Returns(True))
-
-            Dim controller = New Controller(
-                threadingContext,
-                textView,
-                textBuffer,
-                presenter.Object,
-                asyncListener.Object,
-                documentProvider.Object)
-
-            Dim service = DirectCast(SignatureHelpService.GetService(document), SignatureHelpServiceWithProviders)
-            service.SetTestProviders({provider})
-
-            s_controllerMocksMap.Add(controller, New ControllerMocks(
-                      textView,
-                      textBuffer,
-                      presenter,
-                      presenterSession,
-                      asyncListener,
-                      documentProvider,
-                      TryCast(provider, MockSignatureHelpProvider)))
-
-            If triggerSession Then
-                DirectCast(controller, IChainedCommandHandler(Of InvokeSignatureHelpCommandArgs)).ExecuteCommand(
-                    New InvokeSignatureHelpCommandArgs(textView, textBuffer), Nothing, TestCommandExecutionContext.Create())
-                If waitForPresentation Then
-                    controller.WaitForController()
-                End If
-            End If
-
-            Return controller
-        End Function
 
         Private Shared Function CreateItems(count As Integer) As ImmutableArray(Of SignatureHelpItem)
             Return Enumerable.Range(0, count) _
@@ -325,71 +296,172 @@ Namespace Microsoft.CodeAnalysis.Editor.UnitTests.IntelliSense.SignatureHelp
                 .ToImmutableArray()
         End Function
 
-        Friend Class MockSignatureHelpProvider
-            Inherits SignatureHelpProvider
+        Private Class TestEnvironment
+            Public ReadOnly Property TextBuffer As ITextBuffer
+            Public ReadOnly Property TextView As ITextView
+            Public ReadOnly Property SignatureHelpProvider As SignatureHelpProvider
+            Public ReadOnly Property DocumentProviderMock As Mock(Of IDocumentProvider)
+            Public ReadOnly Property PresenterMock As Mock(Of IIntelliSensePresenter(Of ISignatureHelpPresenterSession, ISignatureHelpSession))
+            Public ReadOnly Property PresenterSessionMock As Mock(Of ISignatureHelpPresenterSession)
+            Public ReadOnly Property Controller As Controller
 
-            Private ReadOnly _items As ImmutableArray(Of SignatureHelpItem)
+            Public Property GetItemAsyncCallCount As Integer
 
-            Public Sub New(items As ImmutableArray(Of SignatureHelpItem))
-                Me._items = items
+            Private Sub New(
+                document As Document,
+                textBuffer As ITextBuffer,
+                textView As ITextView,
+                signatureHelpItems As ImmutableArray(Of SignatureHelpItem),
+                signatureHelpProvider As SignatureHelpProvider,
+                documentProviderMock As Mock(Of IDocumentProvider),
+                presenterMock As Mock(Of IIntelliSensePresenter(Of ISignatureHelpPresenterSession, ISignatureHelpSession)),
+                presenterSessionMock As Mock(Of ISignatureHelpPresenterSession),
+                controller As Controller
+            )
+
+                Me.TextBuffer = textBuffer
+                Me.TextView = textView
+                Me.DocumentProviderMock = documentProviderMock
+                Me.SignatureHelpProvider = If(signatureHelpProvider, CreateMockSignatureHelpProvider(signatureHelpItems))
+                Me.Controller = controller
+                Me.PresenterMock = presenterMock
+                Me.PresenterSessionMock = presenterSessionMock
+
+                Dim service = DirectCast(SignatureHelpService.GetService(document), SignatureHelpServiceWithProviders)
+                service.SetTestProviders({Me.SignatureHelpProvider})
             End Sub
 
-            Public Property GetItemsCount As Integer
+            Private Function CreateMockSignatureHelpProvider(signatureHelpItems As ImmutableArray(Of SignatureHelpItem)) As SignatureHelpProvider
+                Dim signatureHelpProvider = New Mock(Of SignatureHelpProvider)
 
-            Public Overrides Function GetItemsAsync(document As Document, position As Integer, triggerInfo As SignatureHelpTrigger, cancellationToken As CancellationToken) As Task(Of SignatureList)
-                GetItemsCount += 1
-                Return Task.FromResult(If(_items.Any(),
-                                       New SignatureList(Me, _items, TextSpan.FromBounds(position, position), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing),
-                                       Nothing))
+                Dim items = If(signatureHelpItems.IsDefault, CreateItems(1), signatureHelpItems)
+
+                Dim caretPosition As Integer
+
+                signatureHelpProvider _
+                    .Setup(Function(p) p.GetItemsAsync(It.IsAny(Of Document), It.IsAny(Of Integer), It.IsAny(Of SignatureHelpTrigger), It.IsAny(Of CancellationToken))) _
+                    .Callback(Sub(d As Document, cp As Integer, t As SignatureHelpTrigger, ct As CancellationToken) caretPosition = cp) _
+                    .Returns(Function()
+                                 GetItemAsyncCallCount += 1
+
+                                 Dim list = If(items.Any(),
+                                     New SignatureList(signatureHelpProvider.Object, items, TextSpan.FromBounds(caretPosition, caretPosition), selectedItem:=0, argumentIndex:=0, argumentCount:=0, argumentName:=Nothing),
+                                     Nothing)
+
+                                 Return Task.FromResult(list)
+                             End Function)
+
+                signatureHelpProvider _
+                    .Setup(Function(p) p.IsTriggerCharacter(It.IsAny(Of Char))) _
+                    .Returns(False)
+
+                signatureHelpProvider _
+                    .Setup(Function(p) p.IsTriggerCharacter("("c)) _
+                    .Returns(True)
+
+                signatureHelpProvider _
+                    .Setup(Function(p) p.IsRetriggerCharacter(It.IsAny(Of Char))) _
+                    .Returns(False)
+
+                signatureHelpProvider _
+                    .Setup(Function(p) p.IsRetriggerCharacter(")"c)) _
+                    .Returns(True)
+
+                Return signatureHelpProvider.Object
             End Function
 
-            Public Overrides Function IsTriggerCharacter(ch As Char) As Boolean
-                Return ch = "("c
+            Public Shared Function Create(
+                Optional documentProvider As Mock(Of IDocumentProvider) = Nothing,
+                Optional signatureHelpItems As ImmutableArray(Of SignatureHelpItem) = Nothing,
+                Optional signatureHelpProvider As SignatureHelpProvider = Nothing,
+                Optional presenterSession As Mock(Of ISignatureHelpPresenterSession) = Nothing
+            ) As TestEnvironment
+
+                Dim workspace = TestWorkspace.CreateWorkspace(
+                    <Workspace>
+                        <Project Language="C#">
+                            <Document>
+                            </Document>
+                        </Project>
+                    </Workspace>)
+
+                Dim documentId = workspace.Documents.Single().Id
+                Dim testDocument = workspace.GetTestDocument(documentId)
+                Dim document = workspace.CurrentSolution.GetDocument(documentId)
+
+                Dim textBuffer = testDocument.GetTextBuffer()
+                Dim textView = CType(testDocument.GetTextView(), ITextView)
+
+                If documentProvider Is Nothing Then
+                    documentProvider = New Mock(Of IDocumentProvider)
+
+                    With documentProvider
+                        .Setup(Function(p) p.GetDocumentAsync(It.IsAny(Of ITextSnapshot), It.IsAny(Of CancellationToken))) _
+                            .Returns(Task.FromResult(document))
+                        .Setup(Function(p) p.GetOpenDocumentInCurrentContextWithChanges(It.IsAny(Of ITextSnapshot))) _
+                            .Returns(document)
+                    End With
+                End If
+
+                Dim presenter = New Mock(Of IIntelliSensePresenter(Of ISignatureHelpPresenterSession, ISignatureHelpSession)) With {
+                    .DefaultValue = DefaultValue.Mock
+                }
+
+                If presenterSession Is Nothing Then
+                    presenterSession = New Mock(Of ISignatureHelpPresenterSession) With {
+                        .DefaultValue = DefaultValue.Mock
+                    }
+                End If
+
+                presenter _
+                    .Setup(Function(p) p.CreateSession(It.IsAny(Of ITextView), It.IsAny(Of ITextBuffer), It.IsAny(Of ISignatureHelpSession))) _
+                    .Returns(presenterSession.Object)
+
+                presenterSession _
+                    .Setup(Sub(p) p.PresentItems(It.IsAny(Of ITrackingSpan), It.IsAny(Of IList(Of SignatureHelpItem)), It.IsAny(Of SignatureHelpItem), It.IsAny(Of Integer?))) _
+                    .Callback(Sub() presenterSession _
+                        .SetupGet(Function(p) p.EditorSessionIsActive) _
+                        .Returns(True))
+
+                Dim asyncOperationListener = New Mock(Of IAsynchronousOperationListener)()
+
+                Dim controller = New Controller(
+                    workspace.GetService(Of IThreadingContext),
+                    textView,
+                    textBuffer,
+                    presenter.Object,
+                    asyncOperationListener.Object,
+                    documentProvider.Object)
+
+                Return New TestEnvironment(
+                    document, textBuffer, textView, signatureHelpItems, signatureHelpProvider,
+                    documentProvider, presenter, presenterSession, controller)
             End Function
 
-            Public Overrides Function IsRetriggerCharacter(ch As Char) As Boolean
-                Return ch = ")"c
+            Private Function GetCommandHandler(Of T As VisualStudio.Commanding.CommandArgs)() As IChainedCommandHandler(Of T)
+                Return CType(Controller, IChainedCommandHandler(Of T))
             End Function
-        End Class
 
-        Private Shared Function CreateMockTextView(buffer As ITextBuffer) As Mock(Of ITextView)
-            Dim caret = New Mock(Of ITextCaret)
-            caret.Setup(Function(c) c.Position).Returns(Function() New CaretPosition(New VirtualSnapshotPoint(buffer.CurrentSnapshot, buffer.CurrentSnapshot.Length), CreateMock(Of IMappingPoint), PositionAffinity.Predecessor))
-            Dim view = New Mock(Of ITextView) With {.DefaultValue = DefaultValue.Mock}
-            view.Setup(Function(v) v.Caret).Returns(caret.Object)
-            view.Setup(Function(v) v.TextBuffer).Returns(buffer)
-            view.Setup(Function(v) v.TextSnapshot).Returns(buffer.CurrentSnapshot)
-            Return view
-        End Function
+            Public Sub InvokeSignatureHelp(Optional waitForController As Boolean = True)
+                Dim commandHandler = GetCommandHandler(Of InvokeSignatureHelpCommandArgs)()
 
-        Private Shared Function CreateMock(Of T As Class)() As T
-            Dim mock = New Mock(Of T)
-            Return mock.Object
-        End Function
+                commandHandler.ExecuteCommand(
+                    New InvokeSignatureHelpCommandArgs(TextView, TextBuffer),
+                    nextCommandHandler:=Nothing,
+                    TestCommandExecutionContext.Create())
 
-        Private Class ControllerMocks
-            Public ReadOnly View As ITextView
-            Public ReadOnly Buffer As ITextBuffer
-            Public ReadOnly Presenter As Mock(Of IIntelliSensePresenter(Of ISignatureHelpPresenterSession, ISignatureHelpSession))
-            Public ReadOnly PresenterSession As Mock(Of ISignatureHelpPresenterSession)
-            Public ReadOnly AsyncListener As Mock(Of IAsynchronousOperationListener)
-            Public ReadOnly DocumentProvider As Mock(Of IDocumentProvider)
-            Public ReadOnly Provider As MockSignatureHelpProvider
+                If waitForController Then
+                    Controller.WaitForController()
+                End If
+            End Sub
 
-            Public Sub New(view As ITextView,
-                           buffer As ITextBuffer,
-                           presenter As Mock(Of IIntelliSensePresenter(Of ISignatureHelpPresenterSession, ISignatureHelpSession)),
-                           presenterSession As Mock(Of ISignatureHelpPresenterSession),
-                           asyncListener As Mock(Of IAsynchronousOperationListener),
-                           documentProvider As Mock(Of IDocumentProvider),
-                           provider As MockSignatureHelpProvider)
-                Me.View = view
-                Me.Buffer = buffer
-                Me.Presenter = presenter
-                Me.PresenterSession = presenterSession
-                Me.AsyncListener = asyncListener
-                Me.DocumentProvider = documentProvider
-                Me.Provider = provider
+            Public Sub TypeChar(ch As Char)
+                Dim commandHandler = GetCommandHandler(Of TypeCharCommandArgs)()
+
+                commandHandler.ExecuteCommand(
+                    New TypeCharCommandArgs(TextView, TextBuffer, ch),
+                    nextCommandHandler:=Sub() TextBuffer.Insert(TextView.Caret.Position.BufferPosition.Position, ch),
+                    TestCommandExecutionContext.Create())
             End Sub
         End Class
     End Class
