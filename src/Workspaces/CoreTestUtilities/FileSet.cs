@@ -4,6 +4,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
+using System.IO;
+using Microsoft.CodeAnalysis.Test.Utilities;
+using Roslyn.Utilities;
 
 namespace Microsoft.CodeAnalysis.UnitTests
 {
@@ -17,12 +21,17 @@ namespace Microsoft.CodeAnalysis.UnitTests
         }
 
         public FileSet(params (string fileName, object content)[] files)
+            : this((IEnumerable<(string, object)>)files)
+        {
+        }
+
+        public FileSet(IEnumerable<(string fileName, object content)> files)
         {
             var builder = ImmutableDictionary.CreateBuilder<string, object>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var (fileName, fileContent) in files)
+            foreach (var (fileName, content) in files)
             {
-                builder.Add(fileName, fileContent);
+                builder[fileName] = content;
             }
 
             _fileMap = builder.ToImmutable();
@@ -41,11 +50,25 @@ namespace Microsoft.CodeAnalysis.UnitTests
             return GetEnumerator();
         }
 
-        public FileSet WithFile(string fileName, object content)
+        public FileSet With(string fileName, object content)
         {
             var newFileMap = _fileMap.SetItem(fileName, content);
 
             return new FileSet(newFileMap);
+        }
+
+        public FileSet With(params (string fileName, object content)[] files)
+        {
+            var builder = ImmutableDictionary.CreateBuilder<string, object>(StringComparer.OrdinalIgnoreCase);
+
+            builder.AddRange(_fileMap);
+
+            foreach (var (fileName, content) in files)
+            {
+                builder[fileName] = content;
+            }
+
+            return new FileSet(builder.ToImmutable());
         }
 
         public FileSet ReplaceFileElement(string fileName, string elementName, string elementValue)
@@ -66,7 +89,7 @@ namespace Microsoft.CodeAnalysis.UnitTests
                             if (endTagStart >= startTagEnd)
                             {
                                 var newContent = textContent.Substring(0, startTagEnd + 1) + elementValue + textContent.Substring(endTagStart);
-                                return this.WithFile(fileName, newContent);
+                                return With(fileName, newContent);
                             }
                         }
                     }
@@ -74,6 +97,36 @@ namespace Microsoft.CodeAnalysis.UnitTests
             }
 
             return this;
+        }
+
+        public void CreateIn(TempDirectory dir)
+        {
+            foreach (var (filePath, fileContent) in _fileMap)
+            {
+                Debug.Assert(fileContent is string || fileContent is byte[]);
+
+                var subdirectory = Path.GetDirectoryName(filePath);
+                var fileName = Path.GetFileName(filePath);
+
+                var targetDir = dir;
+
+                if (!string.IsNullOrEmpty(subdirectory))
+                {
+                    targetDir = targetDir.CreateDirectory(subdirectory);
+                }
+
+                // workspace uses File APIs that don't work with "delete on close" files:
+                var file = targetDir.CreateFile(fileName);
+
+                if (fileContent is string s)
+                {
+                    file.WriteAllText(s);
+                }
+                else
+                {
+                    file.WriteAllBytes((byte[])fileContent);
+                }
+            }
         }
     }
 }

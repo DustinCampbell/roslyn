@@ -106,8 +106,9 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
         protected async Task PrepareCrossLanguageProjectWithEmittedMetadataAsync()
         {
             // Now try variant of CSharpProject that has an emitted assembly 
-            CreateFiles(GetMultiProjectSolutionFiles()
-                .WithFile(@"CSharpProject\CSharpProject.csproj", Resources.ProjectFiles.CSharp.ForEmittedOutput));
+            FileSets.MixedLanguageSolution
+                .With(@"CSharpProject\CSharpProject.csproj", Resources.ProjectFiles.CSharp.ForEmittedOutput)
+                .CreateIn(SolutionDir);
 
             var solutionFilePath = GetSolutionFileName("TestSolution.sln");
             using (var workspace = CreateMSBuildWorkspace())
@@ -132,7 +133,7 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
         protected async Task<Solution> SolutionAsync(params IBuilder[] inputs)
         {
             var files = GetSolutionFiles(inputs);
-            CreateFiles(files);
+            files.CreateIn(SolutionDir);
             var solutionFileName = files.First(t => t.fileName.EndsWith(".sln", StringComparison.OrdinalIgnoreCase)).fileName;
             solutionFileName = GetSolutionFileName(solutionFileName);
             using (var workspace = CreateMSBuildWorkspace())

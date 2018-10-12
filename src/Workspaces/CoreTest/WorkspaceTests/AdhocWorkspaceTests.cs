@@ -155,14 +155,14 @@ namespace Microsoft.CodeAnalysis.UnitTests
         [Fact, Trait(Traits.Feature, Traits.Features.Workspace)]
         public async Task TestAddProject_CommandLineProjectAsync()
         {
-            CreateFiles(GetSimpleCSharpSolutionFiles());
+            FileSets.SimpleCSharpSolution.CreateIn(SolutionDir);
 
-            string commandLine = @"CSharpClass.cs /out:goo.dll /target:library";
-            var baseDirectory = Path.Combine(this.SolutionDirectory.Path, "CSharpProject");
+            const string CommandLine = @"CSharpClass.cs /out:goo.dll /target:library";
+            var baseDirectory = Path.Combine(SolutionDir.Path, "CSharpProject");
 
             using (var ws = new AdhocWorkspace(DesktopMefHostServices.DefaultServices))
             {
-                var info = CommandLineProject.CreateProjectInfo("TestProject", LanguageNames.CSharp, commandLine, baseDirectory, ws);
+                var info = CommandLineProject.CreateProjectInfo("TestProject", LanguageNames.CSharp, CommandLine, baseDirectory, ws);
                 ws.AddProject(info);
                 var project = ws.CurrentSolution.GetProject(info.Id);
 
@@ -192,7 +192,7 @@ namespace Microsoft.CodeAnalysis.UnitTests
         {
             using (var ws = new AdhocWorkspace())
             {
-                ProjectId pid = ProjectId.CreateNewId();
+                var pid = ProjectId.CreateNewId();
 
                 var docInfo = DocumentInfo.Create(
                                 DocumentId.CreateNewId(pid),

@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Xml.Linq;
+using Microsoft.CodeAnalysis.UnitTests;
 using Microsoft.CodeAnalysis.UnitTests.TestFiles;
 
 namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
@@ -55,7 +56,7 @@ EndGlobal
         public const string PublicKeyToken = "39d7e8ec38707fde";
         public static readonly byte[] KeySnk = Resources.Key_snk;
 
-        public static IEnumerable<(string fileName, object fileContent)> GetSolutionFiles(params IBuilder[] inputs)
+        public static FileSet GetSolutionFiles(params IBuilder[] inputs)
         {
             var list = new List<(string, object)>();
             var projectBuilders = inputs.OfType<ProjectBuilder>();
@@ -105,7 +106,7 @@ EndGlobal
 
             list.Add(("Solution.sln", GetSolutionContent(projectBuilders)));
 
-            return list;
+            return new FileSet(list);
         }
 
         public static IBuilder Project(params IBuilder[] inputs)

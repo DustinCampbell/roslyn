@@ -19,7 +19,7 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
 
         public NetCoreTests()
         {
-            _nugetCacheDir = SolutionDirectory.CreateDirectory(".packages");
+            _nugetCacheDir = SolutionDir.CreateDirectory(".packages");
         }
 
         private void DotNetRestore(string solutionOrProjectFileName)
@@ -33,8 +33,8 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
 
             var restoreResult = ProcessUtilities.Run(
                 fileName: DotNetCoreSdk.ExePath,
-                arguments: $@"msbuild ""{solutionOrProjectFileName}"" /t:restore /bl:{Path.Combine(SolutionDirectory.Path, "restore.binlog")}",
-                workingDirectory: SolutionDirectory.Path,
+                arguments: $@"msbuild ""{solutionOrProjectFileName}"" /t:restore /bl:{Path.Combine(SolutionDir.Path, "restore.binlog")}",
+                workingDirectory: SolutionDir.Path,
                 additionalEnvironmentVars: environmentVariables);
 
             Assert.True(restoreResult.ExitCode == 0, $"Restore failed with exit code {restoreResult.ExitCode}: {restoreResult.Output}");
@@ -43,9 +43,9 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
         [ConditionalFact(typeof(VisualStudioMSBuildInstalled), typeof(DotNetCoreSdk.IsAvailable))]
         [Trait(Traits.Feature, Traits.Features.MSBuildWorkspace)]
         [Trait(Traits.Feature, Traits.Features.NetCore)]
-        public async Task TestOpenProject_NetCoreApp2()
+        public async Task TestOpenProject_NetCoreApp()
         {
-            CreateFiles(GetNetCoreApp2Files());
+            FileSets.NetCoreApp.CreateIn(SolutionDir);
 
             var projectFilePath = GetSolutionFileName("Project.csproj");
 
@@ -69,9 +69,9 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
         [ConditionalFact(typeof(VisualStudioMSBuildInstalled), typeof(DotNetCoreSdk.IsAvailable))]
         [Trait(Traits.Feature, Traits.Features.MSBuildWorkspace)]
         [Trait(Traits.Feature, Traits.Features.NetCore)]
-        public async Task TestOpenProjectTwice_NetCoreApp2AndLibrary()
+        public async Task TestOpenProjectTwice_NetCoreAppAndLibrary()
         {
-            CreateFiles(GetNetCoreApp2AndLibraryFiles());
+            FileSets.NetCoreAppAndLibrary.CreateIn(SolutionDir);
 
             var projectFilePath = GetSolutionFileName(@"Project\Project.csproj");
             var libraryFilePath = GetSolutionFileName(@"Library\Library.csproj");
@@ -108,9 +108,9 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
         [ConditionalFact(typeof(VisualStudioMSBuildInstalled), typeof(DotNetCoreSdk.IsAvailable))]
         [Trait(Traits.Feature, Traits.Features.MSBuildWorkspace)]
         [Trait(Traits.Feature, Traits.Features.NetCore)]
-        public async Task TestOpenProjectTwice_NetCoreApp2AndTwoLibraries()
+        public async Task TestOpenProjectTwice_NetCoreAppAndTwoLibraries()
         {
-            CreateFiles(GetNetCoreApp2AndTwoLibrariesFiles());
+            FileSets.NetCoreAppAndTwoLibraries.CreateIn(SolutionDir);
 
             var projectFilePath = GetSolutionFileName(@"Project\Project.csproj");
             var library1FilePath = GetSolutionFileName(@"Library1\Library1.csproj");
@@ -158,7 +158,7 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
         [Trait(Traits.Feature, Traits.Features.NetCore)]
         public async Task TestOpenProject_NetCoreMultiTFM()
         {
-            CreateFiles(GetNetCoreMultiTFMFiles());
+            FileSets.NetCoreMultiTFM.CreateIn(SolutionDir);
 
             var projectFilePath = GetSolutionFileName("Project.csproj");
 
@@ -202,7 +202,7 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
         [Trait(Traits.Feature, Traits.Features.NetCore)]
         public async Task TestOpenProject_NetCoreMultiTFM_ProjectReference()
         {
-            CreateFiles(GetNetCoreMultiTFMFiles_ProjectReference());
+            FileSets.NetCoreMultiTFM_ProjectReference.CreateIn(SolutionDir);
 
             // Restoring for Project.csproj should also restore Library.csproj
             DotNetRestore(@"Project\Project.csproj");
@@ -217,7 +217,7 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
         [Trait(Traits.Feature, Traits.Features.NetCore)]
         public async Task TestOpenProject_NetCoreMultiTFM_ProjectReferenceWithReversedTFMs()
         {
-            CreateFiles(GetNetCoreMultiTFMFiles_ProjectReferenceWithReversedTFMs());
+            FileSets.NetCoreMultiTFM_ProjectReferenceWithReversedTFMs.CreateIn(SolutionDir);
 
             // Restoring for Project.csproj should also restore Library.csproj
             DotNetRestore(@"Project\Project.csproj");
@@ -320,7 +320,7 @@ namespace Microsoft.CodeAnalysis.MSBuild.UnitTests
         [Trait(Traits.Feature, Traits.Features.NetCore)]
         public async Task TestOpenSolution_NetCoreMultiTFMWithProjectReferenceToFSharp()
         {
-            CreateFiles(GetNetCoreMultiTFMFiles_ProjectReferenceToFSharp());
+            FileSets.NetCoreMultiTFM_ProjectReferenceToFSharp.CreateIn(SolutionDir);
 
             var solutionFilePath = GetSolutionFileName("Solution.sln");
 
