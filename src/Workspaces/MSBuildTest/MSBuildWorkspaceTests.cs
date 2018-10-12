@@ -448,7 +448,7 @@ class C1
         {
             FileSets.SimpleCSharpSolution
                 .With(@"CSharpProject\CSharpProject.csproj", Resources.ProjectFiles.CSharp.WithoutPrefer32Bit)
-                .ReplaceFileElement(@"CSharpProject\CSharpProject.csproj", "OutputType", "Library")
+                .UpdateProjectProperty(@"CSharpProject\CSharpProject.csproj", "OutputType", "Library")
                 .CreateIn(SolutionDir);
 
             var projectFilePath = GetSolutionFileName(@"CSharpProject\CSharpProject.csproj");
@@ -485,7 +485,7 @@ class C1
         {
             FileSets.SimpleCSharpSolution
                 .With(@"CSharpProject\CSharpProject.csproj", Resources.ProjectFiles.CSharp.WithPrefer32Bit)
-                .ReplaceFileElement(@"CSharpProject\CSharpProject.csproj", "OutputType", "Library")
+                .UpdateProjectProperty(@"CSharpProject\CSharpProject.csproj", "OutputType", "Library")
                 .CreateIn(SolutionDir);
 
             var projectFilePath = GetSolutionFileName(@"CSharpProject\CSharpProject.csproj");
@@ -504,7 +504,7 @@ class C1
         {
             FileSets.SimpleCSharpSolution
                 .With(@"CSharpProject\CSharpProject.csproj", Resources.ProjectFiles.CSharp.WithPrefer32Bit)
-                .ReplaceFileElement(@"CSharpProject\CSharpProject.csproj", "OutputType", "winmdobj")
+                .UpdateProjectProperty(@"CSharpProject\CSharpProject.csproj", "OutputType", "winmdobj")
                 .CreateIn(SolutionDir);
 
             var projectFilePath = GetSolutionFileName(@"CSharpProject\CSharpProject.csproj");
@@ -521,7 +521,7 @@ class C1
         public async Task TestOpenProject_CSharp_WithoutOutputPath()
         {
             FileSets.SimpleCSharpSolution
-                .ReplaceFileElement(@"CSharpProject\CSharpProject.csproj", "OutputPath", "")
+                .UpdateProjectProperty(@"CSharpProject\CSharpProject.csproj", "OutputPath", "")
                 .CreateIn(SolutionDir);
 
             var projectFilePath = GetSolutionFileName(@"CSharpProject\CSharpProject.csproj");
@@ -537,7 +537,7 @@ class C1
         public async Task TestOpenProject_CSharp_WithoutAssemblyName()
         {
             FileSets.SimpleCSharpSolution
-                .ReplaceFileElement(@"CSharpProject\CSharpProject.csproj", "AssemblyName", "")
+                .UpdateProjectProperty(@"CSharpProject\CSharpProject.csproj", "AssemblyName", "")
                 .CreateIn(SolutionDir);
 
             var projectFilePath = GetSolutionFileName(@"CSharpProject\CSharpProject.csproj");
@@ -606,7 +606,7 @@ class C1
         {
             FileSets.MixedLanguageSolution
                 .With(@"VisualBasicProject\VisualBasicProject.vbproj", Resources.ProjectFiles.VisualBasic.WithoutPrefer32Bit)
-                .ReplaceFileElement(@"VisualBasicProject\VisualBasicProject.vbproj", "OutputType", "Library")
+                .UpdateProjectProperty(@"VisualBasicProject\VisualBasicProject.vbproj", "OutputType", "Library")
                 .CreateIn(SolutionDir);
 
             var projectFilePath = GetSolutionFileName(@"VisualBasicProject\VisualBasicProject.vbproj");
@@ -643,7 +643,7 @@ class C1
         {
             FileSets.MixedLanguageSolution
                 .With(@"VisualBasicProject\VisualBasicProject.vbproj", Resources.ProjectFiles.VisualBasic.WithPrefer32Bit)
-                .ReplaceFileElement(@"VisualBasicProject\VisualBasicProject.vbproj", "OutputType", "Library")
+                .UpdateProjectProperty(@"VisualBasicProject\VisualBasicProject.vbproj", "OutputType", "Library")
                 .CreateIn(SolutionDir);
 
             var projectFilePath = GetSolutionFileName(@"VisualBasicProject\VisualBasicProject.vbproj");
@@ -662,7 +662,7 @@ class C1
         {
             FileSets.MixedLanguageSolution
                 .With(@"VisualBasicProject\VisualBasicProject.vbproj", Resources.ProjectFiles.VisualBasic.WithPrefer32Bit)
-                .ReplaceFileElement(@"VisualBasicProject\VisualBasicProject.vbproj", "OutputType", "winmdobj")
+                .UpdateProjectProperty(@"VisualBasicProject\VisualBasicProject.vbproj", "OutputType", "winmdobj")
                 .CreateIn(SolutionDir);
 
             var projectFilePath = GetSolutionFileName(@"VisualBasicProject\VisualBasicProject.vbproj");
@@ -680,7 +680,7 @@ class C1
         {
             FileSets.MixedLanguageSolution
                 .With(@"VisualBasicProject\VisualBasicProject.vbproj", Resources.ProjectFiles.VisualBasic.WithPrefer32Bit)
-                .ReplaceFileElement(@"VisualBasicProject\VisualBasicProject.vbproj", "OutputPath", "")
+                .UpdateProjectProperty(@"VisualBasicProject\VisualBasicProject.vbproj", "OutputPath", "")
                 .CreateIn(SolutionDir);
 
             var projectFilePath = GetSolutionFileName(@"VisualBasicProject\VisualBasicProject.vbproj");
@@ -696,7 +696,7 @@ class C1
         public async Task TestOpenProject_VisualBasic_WithLanguageVersion15_3()
         {
             FileSets.MixedLanguageSolution
-                .ReplaceFileElement(@"VisualBasicProject\VisualBasicProject.vbproj", "LangVersion", "15.3")
+                .UpdateProjectProperty(@"VisualBasicProject\VisualBasicProject.vbproj", "LangVersion", "15.3")
                 .CreateIn(SolutionDir);
 
             var projectFilePath = GetSolutionFileName(@"VisualBasicProject\VisualBasicProject.vbproj");
@@ -712,7 +712,7 @@ class C1
         public async Task TestOpenProject_VisualBasic_WithLatestLanguageVersion()
         {
             FileSets.MixedLanguageSolution
-                .ReplaceFileElement(@"VisualBasicProject\VisualBasicProject.vbproj", "LangVersion", "Latest")
+                .UpdateProjectProperty(@"VisualBasicProject\VisualBasicProject.vbproj", "LangVersion", "Latest")
                 .CreateIn(SolutionDir);
 
             var projectFilePath = GetSolutionFileName(@"VisualBasicProject\VisualBasicProject.vbproj");
@@ -730,7 +730,7 @@ class C1
         {
             FileSets.MixedLanguageSolution
                 .With(@"VisualBasicProject\VisualBasicProject.vbproj", Resources.ProjectFiles.VisualBasic.WithPrefer32Bit)
-                .ReplaceFileElement(@"VisualBasicProject\VisualBasicProject.vbproj", "AssemblyName", "")
+                .UpdateProjectProperty(@"VisualBasicProject\VisualBasicProject.vbproj", "AssemblyName", "")
                 .CreateIn(SolutionDir);
 
             var projectFilePath = GetSolutionFileName(@"VisualBasicProject\VisualBasicProject.vbproj");
@@ -2115,7 +2115,7 @@ class C1
         public async Task TestParseOptions_VisualBasic_PreprocessorSymbols()
         {
             FileSets.MixedLanguageSolution
-                .ReplaceFileElement(@"VisualBasicProject\VisualBasicProject.vbproj", "DefineConstants", "X=1,Y=2,Z,T=-1,VBC_VER=123,F=false")
+                .UpdateProjectProperty(@"VisualBasicProject\VisualBasicProject.vbproj", "DefineConstants", "X=1,Y=2,Z,T=-1,VBC_VER=123,F=false")
                 .CreateIn(SolutionDir);
 
             var solutionFilePath = GetSolutionFileName("TestSolution.sln");
@@ -2153,7 +2153,7 @@ class C1
         {
             FileSets.MixedLanguageSolution
                 .With(@"VisualBasicProject\VisualBasicClass.vb", Resources.SourceFiles.VisualBasic.VisualBasicClass_WithConditionalAttributes)
-                .ReplaceFileElement(@"VisualBasicProject\VisualBasicProject.vbproj", "DefineConstants", "EnableMyAttribute")
+                .UpdateProjectProperty(@"VisualBasicProject\VisualBasicProject.vbproj", "DefineConstants", "EnableMyAttribute")
                 .CreateIn(SolutionDir);
 
             var solutionFilePath = GetSolutionFileName("TestSolution.sln");
@@ -2208,7 +2208,7 @@ class C1
         {
             FileSets.SimpleCSharpSolution
                 .With(@"CSharpProject\CSharpClass.cs", Resources.SourceFiles.CSharp.CSharpClass_WithConditionalAttributes)
-                .ReplaceFileElement(@"CSharpProject\CSharpProject.csproj", "DefineConstants", "EnableMyAttribute")
+                .UpdateProjectProperty(@"CSharpProject\CSharpProject.csproj", "DefineConstants", "EnableMyAttribute")
                 .CreateIn(SolutionDir);
 
             var solutionFilePath = GetSolutionFileName("TestSolution.sln");

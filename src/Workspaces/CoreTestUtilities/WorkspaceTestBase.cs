@@ -32,14 +32,14 @@ namespace Microsoft.CodeAnalysis.UnitTests
         {
             FileSets.SimpleCSharpSolution
                 .With(@"CSharpProject\CSharpProject.csproj", Resources.ProjectFiles.CSharp.AllOptions)
-                .ReplaceFileElement(@"CSharpProject\CSharpProject.csproj", propertyName, value)
+                .UpdateProjectProperty(@"CSharpProject\CSharpProject.csproj", propertyName, value)
                 .CreateIn(SolutionDir);
         }
 
         protected void CreateVBFilesWith(string propertyName, string value)
         {
             FileSets.MixedLanguageSolution
-                .ReplaceFileElement(@"VisualBasicProject\VisualBasicProject.vbproj", propertyName, value)
+                .UpdateProjectProperty(@"VisualBasicProject\VisualBasicProject.vbproj", propertyName, value)
                 .CreateIn(SolutionDir);
         }
 

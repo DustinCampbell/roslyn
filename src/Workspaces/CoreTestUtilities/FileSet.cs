@@ -71,7 +71,7 @@ namespace Microsoft.CodeAnalysis.UnitTests
             return new FileSet(builder.ToImmutable());
         }
 
-        public FileSet ReplaceFileElement(string fileName, string elementName, string elementValue)
+        public FileSet UpdateProjectProperty(string fileName, string elementName, string elementValue)
         {
             if (_fileMap.TryGetValue(fileName, out var content))
             {
